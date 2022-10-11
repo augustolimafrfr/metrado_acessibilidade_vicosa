@@ -1,2 +1,19 @@
-# metrado_acessibilidade_vicosa
-Códigos utilizados na dissertação de mestrado para cálculo da Acessibilidade das principais vias do município de Viçosa.
+# TUTORIAL PARA ORGANIZAÇÃO DA BASE DE DADOS - ACESSIBILIDADE VIAS DE VIÇOSA
+Este é um tutorial com o passo-a-passo de todo o procedimento metodológico utilizado na dissertação de mestrado para a preparação da base de dados do município de Viçosa com o objetivo de calcular a acessibilidade de suas principais vias. Os softwares utilizados durante o processo foram: `PostgreeSQL 14` (com o pacote de extensões para dados espaciais PostGis), `Python 3` (juntamente com a IDE Jupyter Notebook) e `QGIS 3.22.7`.
+
+O objetivo desse tutorial é explicar de forma detalhada os procedimentos realizados para organizar a base de dados das vias de Viçosa e com isso, será possível entender o processo e replicá-lo para demais bases de dados.
+
+Nas pastas X e Y...
+
+## PASSO-A-PASSO:
+
+### **1. ORIGEM DOS DADOS:**
+
+Os dados utilizados nesse trabalho foram fornecidos por Vieira e Castro (2021). Trata-se de um conjunto de arquivos no formato shapefile com grande parte das vias de Viçosa com diverssos atributos.
+
+### **2. SELEÇÃO DOS ATRIBUTOS UTEIS:**
+
+Os atributos de interesse para a dissertação foram `largura da via`, `pavimento`, `sentido da via`. Portanto, todos os demais atributos foram excluidos através da ferramenta `Editar campos` do software `QGIS`. Dois novos campos foram criados: `nome da rua` e `tipo_pm`, sendo que o primeiro será utilizado para incluir o nome das vias e o segundo a classificação de acordo com o plano de mobilidade.
+
+### **3. SELEÇÃO DAS VIAS A SEREM UTILIZADAS:**
+As vias mencionadas no Plano de Mobilidade de Viçosa foram selecionadas utilizando o `Open Street Map` e o `Google Maps` como pano de fundo. 
