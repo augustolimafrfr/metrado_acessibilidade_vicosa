@@ -49,10 +49,102 @@ Todos arquivos gerados foram importados para o banco de dados. O procedimento pa
 
 #### 8.1. IMPORTANDO OS ARQUIVOS DO FORMATO SHAPEFILE
 
- Os arquivos `vias_grafos`, `vias_nomeruas`, `vias_tipopm`, `vias_oneway`, `vias_pavimentos` e `vias_largura` foram importados através da ferramenta `Gerenciador BD...` disponível após a instalação do `PostGIS`. O procedimento é feito selecionando de forma individual o arquivo que será importado na aba **Entrada**, em **Esquema** seleciona-se a opção _public_ e em **Tabela** atribuiu-se o nome desejado da tabela (igual ao nome do arquivo em formato shapefile). Isso foi feito para todos os arquivos.
+Os arquivos agora devem ser importados para um banco de dados. O banco usado nessa dissertação possui o nome `banco_dissertacao` e possui todas extensões espaciais provenientes do PostGIS.
+
+Os arquivos `vias_grafos`, `vias_nomeruas`, `vias_tipopm`, `vias_oneway`, `vias_pavimentos` e `vias_largura` foram importados através da ferramenta `Gerenciador BD...` disponível após a instalação do `PostGIS`. O procedimento é feito selecionando de forma individual o arquivo que será importado na aba **Entrada**, em **Esquema** seleciona-se a opção _public_ e em **Tabela** atribuiu-se o nome desejado da tabela (igual ao nome do arquivo em formato shapefile). Isso foi feito para todos os arquivos.
 
 #### 8.2. IMPORTANDO OS ARQUIVOS DO FORMATO RASTER
 
 O MDE foi importado através do promp de comando. Com o promp aberto digita-se os seguintes comandos:
 
-``
+**PARA TRANSFORMAR O ARQUIVO MATRICIAL EM UMA TABELA SQL BINÁRIA:**
+
+    raster2pgsql -s 31983 -I -C -M mde_vicosa.tif -F -t 100x100 public.mde_vicosa > mde_vicosa.sql
+
+**PARA IMPORTAR O ARQUIVO NO BANCO DE DADOS:**
+
+    psql -h localhost -U postgres -p 5432 -d banco_dissertacao -f mde_vicosa.sql
+
+### 9. COMPLETANDO O ARQUIVO VIAS_GRAFOS
+
+Os atributos do arquivo `vias_grafos` estão majoritariamente em branco. Para preenchê-los utilizou-se da lingaguem Python através da IDE `Jupyter Notebook`. O procedimento necessita da instalação, através do prompt de comando, do pacote `psycopg2` (necessário para manipular o banco de dados dentro da linaguem Python). Depois disso é possível executar os comandos em lingaguem Python.
+
+**Todos os scripts explicados estão localizados na pasta `SCRIPTS_DISSERTACAO`. Essa pasta se divide em duas sub-pastas: SCRIPTS_SQL (com os codigos executados em linguagem SQL) e SCRIPTS_PYTHON (com o ambiente virtual utilizado nesse trabalho). Para acessar os Scripts que estão separados individualmente é necessário acessar a pasta projetos que está localizada em SCRIPTS_PYTHON >> av_dissertacao >> projetos.**
+
+#### 9.1. INSTALAÇÃO DO PACOTE psycopg2
+
+Para instalar o pacote psycopg2 é necessário digitar o seguinte comando no prompt de comandos:
+
+    pip install psycopg2
+
+#### 9.2. SCRIPTS EM PYTHON:
+
+#### 9.2.1. IMPORTANDO O PACOTE psycopg2:
+
+    import psycopg2 as pg
+
+#### 9.2.2. CONECTANDO COM O BANCO DE DADOS:
+
+    con = pg.connect(host='localhost', 
+                database='dissertacao',
+                user='postgres', 
+                password='admin')
+
+    cur = con.cursor() #CRIANDO UMA INSTÂNCIA PARA EXECUTAR COMANDOS EM SQL
+
+    # OBS: O servidor hospedado na máquina local será conectado no banco de dados nomeado DISSERTAÇÃO, que possui usuário postgres e senha admin.
+
+#### 9.2.3. VENDO QUANTOS GRAFOS A MALHA POSSUI
+
+    tabela_grafos = 'vias_grafos'#TABELA COM OS GRAFOS
+
+    sql = f'select max(id) from {tabela_grafos}' #COMANDO EM SQL A SER EXECUTADO
+
+    cur.execute(sql) #EXECUTANDO O COMANDO CRIADO
+
+    dados_consultados = cur.fetchall() #RETORNANDO OS DADOS
+
+    id_max = dados_consultados[0][0] #ID MÁXIMO DA MALHA
+
+
+#### 9.2.4. ATRIBUINDO NOME DAS VIAS PARA O BANCO DE DADOS DOS GRAFOS
+
+    #NOME DAS TABELAS E DOS ATRIBUTOS DA CONSULTA:
+    tabela_grafos = 'vias_grafos' #NOME DE TABELA QUE CONTÉM O SHP DOS GRAFOS DA MALHA
+    abr_grafos = 'vg' #ABREVIAÇÃO PARA A TABELA QUE CONTÉM O SHP DOS GRAFOS DA MALHA
+    atributo_dados_grafo = 'nome_rua' #NOME DA COLUNA (EM BRANCO) QUE SERÃO ADICIONADAS AS INFORMAÇÕES DE NOME DAS RUAS NA TABELA DO SHP DOS GRAFOS
+    tabela_dados = 'vias_nomeruas' #NOME DE TABELA QUE CONTÉM O SHP DOS NOMES DAS RUAS DA MALHA
+    abr_dados = 'vnr' #ABREVIAÇÃO PARA A TABELA QUE CONTÉM O SHP DOS NOMES DAS RUAS DA MALHA
+    atributo_dados = 'nome_rua' #NOME DA COLUNA QUE CONTEM AS INFORMAÇÕES DOS NOMES DAS RUAS NA TABELA DO SHP DOS NOMES DAS RUAS DA MALHA
+
+    #ADICIONANDO O NOME DAS RUAS PARA CADA ID DA TABELA DOS GRAFOS DA MALHA
+
+    for id_i in range(1, id_max + 1): #OS COMANDOS SERÃO EXECUTADOS DO GRAFO DE ID=1 ATÉ O ÚLTIMO GRAFO DA TABELA QUE POSSUI ID = ID_MAX
+
+        sql = f'select {abr_dados}.{atributo_dados} from "{tabela_dados}" {abr_dados}, "{tabela_grafos}" {abr_grafos} where st_contains({abr_grafos}.geom, {abr_dados}.geom) and {abr_grafos}.id = {id_i}' #COMANDO EM SQL A SER EXECUTADO. SERÁ SELECIONADO O ATRIBUTOS INDICADO DA TABELA DOS SHP DOS ATRIBUTOS, ONDE A GEOMETRIA DOS ELEMENTOS DA TABELA DE ATRIBUTOS ESTÁ CONTIDA NA GEOMETRIA DA TABELA DO GRAFO, PARA O ID DO GRAFO EM ANÁLISE.
+
+        cur.execute(sql) #EXECUTANDO O COMANDO
+
+        dados_consultados = cur.fetchall() #RETORNANDO OS DADOS
+
+        lista_dados = [] #CRIANDO UMA LISTA VAZIA, NO QUAL OS DADOS CONSULTADOS SERÃO ADICIONADOS
+
+        for dado in dados_consultados: #ADICIONANDO OS RESULTADOS NA LISTA CRIADA
+            if dado[0] not in lista_dados:
+                lista_dados.append(dado[0])
+
+        lista_dados_str = '' #CRIANDO UMA VARIAVEL NO QUAL A LISTA DE DADOS SERÃO TRANSFORMADA EM UMA STRING DA SEGUINTE FORMA: ATRIBUTO_1; ATRIBUTO_2; ATRIBUTO_3; ... ; ATRIBUTO_n
+
+        for dado in lista_dados: #TRANSFORMANDO A LISTA DE DADOS PARA UMA STRING
+            if dado != lista_dados[len(lista_dados) - 1]:
+                lista_dados_str = lista_dados_str + dado + '; '
+            else:
+                lista_dados_str = lista_dados_str + dado
+
+        #ATUALIZANDO A TABELA DO SHP DOS GRAFOS COM AS INFORMAÇÕES DOS ATRIBUTOS OBTIDOS:
+
+        sql = f"update {tabela_grafos} set {atributo_dados_grafo}='{lista_dados_str}' where id={id_i};" #COMANDO EM SQL A SER EXECUTADO. SERÁ ATRIBUITO A TABELA DO SHP DOS GRAFOS A STRING ACIMA DE ACORDO COM O ID EM ANÁLISE.
+        cur.execute(sql) #EXECUTANDO O COMANDO
+        con.commit() #FINALIZANDO A EXECUÇÃO DO COMANDO
+
+        print(f'ID: {id_i} {atributo_dados_grafo} OK!') #COMANDO DESNECESSÁRIO. APENAS INDICA A FINALIZAÇÃO DAS REPETIÇÕES.
