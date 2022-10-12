@@ -49,13 +49,13 @@ Todos arquivos gerados foram importados para o banco de dados. O procedimento pa
 
 #### 8.1. IMPORTANDO OS ARQUIVOS DO FORMATO SHAPEFILE
 
-Os arquivos agora devem ser importados para um banco de dados. O banco usado nessa dissertação possui o nome `banco_dissertacao` e possui todas extensões espaciais provenientes do PostGIS.
+Os arquivos agora devem ser importados para um banco de dados. O banco usado nessa dissertação possui o nome `dissertacao` e possui todas extensões espaciais provenientes do PostGIS.
 
 Os arquivos `vias_grafos`, `vias_nomeruas`, `vias_tipopm`, `vias_oneway`, `vias_pavimentos` e `vias_largura` foram importados através da ferramenta `Gerenciador BD...` disponível após a instalação do `PostGIS`. O procedimento é feito selecionando de forma individual o arquivo que será importado na aba **Entrada**, em **Esquema** seleciona-se a opção _public_ e em **Tabela** atribuiu-se o nome desejado da tabela (igual ao nome do arquivo em formato shapefile). Isso foi feito para todos os arquivos.
 
 #### 8.2. IMPORTANDO OS ARQUIVOS DO FORMATO RASTER
 
-O MDE foi importado através do promp de comando. Com o promp aberto digita-se os seguintes comandos:
+O MDE foi importado através do **promp de comando**. Com o promp aberto digita-se os seguintes comandos:
 
 **PARA TRANSFORMAR O ARQUIVO MATRICIAL EM UMA TABELA SQL BINÁRIA:**
 
@@ -63,7 +63,7 @@ O MDE foi importado através do promp de comando. Com o promp aberto digita-se o
 
 **PARA IMPORTAR O ARQUIVO NO BANCO DE DADOS:**
 
-    psql -h localhost -U postgres -p 5432 -d banco_dissertacao -f mde_vicosa.sql
+    psql -h localhost -U postgres -p 5432 -d dissertacao -f mde_vicosa.sql
 
 ### 9. COMPLETANDO O ARQUIVO VIAS_GRAFOS
 
@@ -73,17 +73,21 @@ Os atributos do arquivo `vias_grafos` estão majoritariamente em branco. Para pr
 
 #### 9.1. INSTALAÇÃO DO PACOTE psycopg2
 
-Para instalar o pacote psycopg2 é necessário digitar o seguinte comando no prompt de comandos:
+Para instalar o pacote psycopg2 é necessário digitar o seguinte comando no **prompt de comandos**:
 
     pip install psycopg2
 
 #### 9.2. SCRIPTS EM PYTHON:
+
+Os comandos descritos a seguir foram todos executados no **Jupyter Notebook**.
 
 #### 9.2.1. IMPORTANDO O PACOTE psycopg2:
 
     import psycopg2 as pg
 
 #### 9.2.2. CONECTANDO COM O BANCO DE DADOS:
+
+Inseriu-se as configurações do banco de dados. Ele está sendo utilizado no servidor local (host = 'localhost'), o nome do banco de dados é dissertacao (database = 'dissertacao'), o nome de usuário é postgres (user='postgres') e a senha do banco de dados é admin (password = 'admin).
 
     con = pg.connect(host='localhost', 
                 database='dissertacao',
@@ -95,6 +99,8 @@ Para instalar o pacote psycopg2 é necessário digitar o seguinte comando no pro
     # OBS: O servidor hospedado na máquina local será conectado no banco de dados nomeado DISSERTAÇÃO, que possui usuário postgres e senha admin.
 
 #### 9.2.3. VENDO QUANTOS GRAFOS A MALHA POSSUI
+
+É necessário descobrir quantas linhas a rede possui. Para isso executa-se os seguintes comandos:
 
     tabela_grafos = 'vias_grafos'#TABELA COM OS GRAFOS
 
@@ -108,6 +114,8 @@ Para instalar o pacote psycopg2 é necessário digitar o seguinte comando no pro
 
 
 #### 9.2.4. ATRIBUINDO NOME DAS VIAS PARA O BANCO DE DADOS DOS GRAFOS
+
+A estrutura de repetição percorrerá da linha com id 1 até a linha com id máximo da tabela `vias_grafos`. Cada repetição consultará quais nomes de ruas presentes na tabela `vias_nomeruas` estão contidas na linha com id em análise. Esses nomes (caso seja mais de um será separado por ponto e vírgurla), serão atualizados na tabela `vias_grafos` logo em seguida.
 
     #NOME DAS TABELAS E DOS ATRIBUTOS DA CONSULTA:
     tabela_grafos = 'vias_grafos' #NOME DE TABELA QUE CONTÉM O SHP DOS GRAFOS DA MALHA
@@ -148,3 +156,49 @@ Para instalar o pacote psycopg2 é necessário digitar o seguinte comando no pro
         con.commit() #FINALIZANDO A EXECUÇÃO DO COMANDO
 
         print(f'ID: {id_i} {atributo_dados_grafo} OK!') #COMANDO DESNECESSÁRIO. APENAS INDICA A FINALIZAÇÃO DAS REPETIÇÕES.
+
+#### 9.2.5. ATRIBUINDO O TIPO DE PAVIMENTO PARA O BANCO DE DADOS DOS GRAFOS
+
+A estrutura de repetição percorrerá da linha com id 1 até a linha com id máximo da tabela `vias_grafos`. Cada repetição consultará quais tipos de pavimento presentes na tabela `vias_pavimentos` estão contidas na linha com id em análise. Esses pavimentos (caso seja mais de um será separado por ponto e vírgurla), serão atualizados na tabela `vias_grafos` logo em seguida.
+
+    #NOME DAS TABELAS E DOS ATRIBUTOS DA CONSULTA:
+    tabela_grafos = 'vias_grafos' #NOME DE TABELA QUE CONTÉM O SHP DOS GRAFOS DA MALHA
+    abr_grafos = 'vg' #ABREVIAÇÃO PARA A TABELA QUE CONTÉM O SHP DOS GRAFOS DA MALHA
+    atributo_dados_grafo = 'pavimento' #NOME DA COLUNA (EM BRANCO) QUE SERÃO ADICIONADAS AS INFORMAÇÕES DE NOME DAS RUAS NA TABELA DO SHP DOS GRAFOS
+    tabela_dados = 'vias_pavimentos' #NOME DE TABELA QUE CONTÉM O SHP DOS NOMES DAS RUAS DA MALHA
+    abr_dados = 'vp' #ABREVIAÇÃO PARA A TABELA QUE CONTÉM O SHP DOS NOMES DAS RUAS DA MALHA
+    atributo_dados = 'pavimento' #NOME DA COLUNA QUE CONTEM AS INFORMAÇÕES DOS NOMES DAS RUAS NA TABELA DO SHP DOS NOMES DAS RUAS DA MALHA
+
+    #ADICIONANDO O TIPO DE PAVIMENTO DAS RUAS PARA CADA ID DA TABELA DOS GRAFOS DA MALHA
+
+    for id_i in range(1, id_max + 1): #OS COMANDOS SERÃO EXECUTADOS DO GRAFO DE ID=1 ATÉ O ÚLTIMO GRAFO DA TABELA QUE POSSUI ID = ID_MAX
+
+        sql = f'select {abr_dados}.{atributo_dados} from "{tabela_dados}" {abr_dados}, "{tabela_grafos}" {abr_grafos} where st_contains({abr_grafos}.geom, {abr_dados}.geom) and {abr_grafos}.id = {id_i}' #COMANDO EM SQL A SER EXECUTADO. SERÁ SELECIONADO O ATRIBUTOS INDICADO DA TABELA DOS SHP DOS ATRIBUTOS, ONDE A GEOMETRIA DOS ELEMENTOS DA TABELA DE ATRIBUTOS ESTÁ CONTIDA NA GEOMETRIA DA TABELA DO GRAFO, PARA O ID DO GRAFO EM ANÁLISE.
+
+        cur.execute(sql) #EXECUTANDO O COMANDO
+
+        dados_consultados = cur.fetchall() #RETORNANDO OS DADOS
+
+        lista_dados = [] #CRIANDO UMA LISTA VAZIA, NO QUAL OS DADOS CONSULTADOS SERÃO ADICIONADOS
+
+        for dado in dados_consultados: #ADICIONANDO OS RESULTADOS NA LISTA CRIADA
+            if dado[0] not in lista_dados:
+                lista_dados.append(dado[0])
+
+        lista_dados_str = '' #CRIANDO UMA VARIAVEL NO QUAL A LISTA DE DADOS SERÃO TRANSFORMADA EM UMA STRING DA SEGUINTE FORMA: ATRIBUTO_1; ATRIBUTO_2; ATRIBUTO_3; ... ; ATRIBUTO_n
+
+        for dado in lista_dados: #TRANSFORMANDO A LISTA DE DADOS PARA UMA STRING
+            if dado != lista_dados[len(lista_dados) - 1]:
+                lista_dados_str = lista_dados_str + dado + '; '
+            else:
+                lista_dados_str = lista_dados_str + dado
+
+        #ATUALIZANDO A TABELA DO SHP DOS GRAFOS COM AS INFORMAÇÕES DOS ATRIBUTOS OBTIDOS:
+
+        sql = f"update {tabela_grafos} set {atributo_dados_grafo}='{lista_dados_str}' where id={id_i};" #COMANDO EM SQL A SER EXECUTADO. SERÁ ATRIBUITO A TABELA DO SHP DOS GRAFOS A STRING ACIMA DE ACORDO COM O ID EM ANÁLISE.
+        cur.execute(sql) #EXECUTANDO O COMANDO
+        con.commit() #FINALIZANDO A EXECUÇÃO DO COMANDO
+
+        print(f'ID: {id_i} {atributo_dados_grafo} OK!') #COMANDO DESNECESSÁRIO. APENAS INDICA A FINALIZAÇÃO DAS REPETIÇÕES.
+
+
