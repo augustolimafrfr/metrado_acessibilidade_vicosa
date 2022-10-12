@@ -3,7 +3,7 @@ Este é um tutorial com o passo-a-passo de todo o procedimento metodológico uti
 
 O objetivo desse tutorial é explicar de forma detalhada os procedimentos realizados para organizar a base de dados das vias de Viçosa e com isso, será possível entender o processo e replicá-lo para demais bases de dados.
 
-**Todos arquivos utilizados na dissertação estão localizados na pasta `DADOS_DISSERTAÇÃO`, que possui diversas sub-pastas. **
+**Todos arquivos utilizados na dissertação estão localizados na pasta `DADOS_DISSERTAÇÃO`, que possui diversas sub-pastas com os arquivos de forma organizada. **
 
 ## PASSO-A-PASSO:
 
@@ -39,4 +39,20 @@ Na ferramenta mencionada selecionou-se a malha viária (que não está na forma 
 
 **Os cinco arquivos se encontram na pasta `DADOS_INTERMEDIARIOS`**
 
-## 7. 
+## 7. GERAÇÃO DO MDE
+
+O MDE de Viçosa foi gerado a partir do arquivo `declividade_pontos_cotados_SAAE`. Para isso, utilizou-se a ferramenta `Interpolação IDW` do software `QGIS`. O novo arquivo foi recortado através da ferramenta `Recortar raster pela extensão...` com o objetivo de reduzir a extensão do MDE de forma que englobe apenas a área de estudo. Apesar desse passo não ser obrigatório, é interessante recortar o arquivo raster com o objetivo de reduzir o seu tamanho e facilitar os processamentos. O arquivo que contem o MDE de Viçosa foi nomeado como `mde_vicosa`.
+
+### 8. IMPORTANDO TODOS OS DADOS PARA O BANCO DE DADOS
+
+Todos arquivos gerados foram importados para o banco de dados. O procedimento para importar arquivos no formato vetorial (nesse estudo em formato shapefile) e raster são distintos.
+
+#### 8.1. IMPORTANDO OS ARQUIVOS DO FORMATO SHAPEFILE
+
+ Os arquivos `vias_grafos`, `vias_nomeruas`, `vias_tipopm`, `vias_oneway`, `vias_pavimentos` e `vias_largura` foram importados através da ferramenta `Gerenciador BD...` disponível após a instalação do `PostGIS`. O procedimento é feito selecionando de forma individual o arquivo que será importado na aba **Entrada**, em **Esquema** seleciona-se a opção _public_ e em **Tabela** atribuiu-se o nome desejado da tabela (igual ao nome do arquivo em formato shapefile). Isso foi feito para todos os arquivos.
+
+#### 8.2. IMPORTANDO OS ARQUIVOS DO FORMATO RASTER
+
+O MDE foi importado através do promp de comando. Com o promp aberto digita-se os seguintes comandos:
+
+``
