@@ -857,7 +857,7 @@ A tabela com pontos intermediários chama-se `mid_points` e para criá-la usou o
      ON mid_points
      USING GIST (geom);
      
-#### 12.8. VERIFICAR SE AS COLUNAS SOURCE E TARGET ESTÃO CORRETAS
+#### 12.8. VERIFICAR SE AS COLUNAS SOURCE E TARGET ESTÃO CORRETAS `(SQL)`
 
 Foi necessário verificar no `QGIS` se as colunas source e target estão preenchidas corretamente com os valores de id's dos vértices para as linhas com sentido de via unidirecional. Foi possível constatar que as linhas com id 1, 62, 71 e 96 estavam com o sentido invertido e isso foi consertado com os seguintes comandos:
 
@@ -955,3 +955,155 @@ A tabela mid_points apresenta o id de cada ponto igual ao id de sua respectiva l
     (SELECT id, the_geom as geom FROM rede_vicosa_vertices_pgr);
 
     SELECT * FROM rede_vicosa_mp_vertices;
+
+#### 12.13. COMPLETANDO A TABELA `rede_vicosa_mp` COM OS VÉRTICES INICIAIS E FINAIS DE CADA LINHA `(PYTHON)`
+
+Para completar as colunas source e target da tabela `rede_vicosa_mp` utilizou-se um código em linguagem Python. O código realiza uma estrutura de repetição que percorre da linha 1 até a linha de id máximo da tabela e analisa qual elemento da tabela `rede_vicosa_mp_vertices` está contido no inicio e fim da linha em análise. Em seguida atualiza as colunas source e target com os valores encontrados. Segue o código:
+
+#### 12.13.1. IMPORTANDO O PACOTE psycopg2 QUE CONECTA O PYTHON COM O POSTGRE-SQL E O PACOTE pandas PARA ORGANIZAR AS TABELAS DE ACESSIBILIDADE `(PYTHON)`
+
+    import psycopg2 as pg
+    
+#### 12.13.2. CONECTANDO AO BANCO DE DADOS `(PYTHON)`
+
+    con = pg.connect(host='localhost', 
+                    database='dissertacao',
+                    user='postgres', 
+                    password='admin')
+
+    cur = con.cursor() #CRIANDO UMA INSTÂNCIA PARA EXECUTAR COMANDOS EM SQL
+
+    # OBS: O servidor hospedado na máquina local será conectado no banco de dados nomeado rede_exemplo, que possui usuário postgres e senha admin.
+
+#### 12.13.3. VENDO QUANTOS GRAFOS A NOVA MALHA POSSUI `(PYTHON)`
+
+    tabela_grafos = 'rede_vicosa_mp' #TABELA COM A REDE
+    tabela_vertices = 'rede_vicosa_mp_vertices'
+    sql = f'select max(id0) from {tabela_grafos}' #COMANDO EM SQL A SER EXECUTADO
+    cur.execute(sql) #EXECUTANDO O COMANDO CRIADO
+    dados_consultados = cur.fetchall() #RETORNANDO OS DADOS
+    id_max = dados_consultados[0][0] #ID MÁXIMO DA MALHA
+
+#### 12.13.4. DEFININDO OS VÉRTICES DE INICIO E FIM `(PYTHON)`
+
+    for id_i in range (1, id_max + 1):
+        #CONSULTANDO O VÉRTICE INICIAL DO GRAFO i:
+
+        sql = f'SELECT rvmp.id, rvmp.geom FROM (SELECT ST_LineInterpolatePoints(ST_LineMerge(geom), 0) as geom FROM {tabela_grafos} WHERE id0 = {id_i}) as pto, {tabela_vertices} rvmp WHERE ST_Intersects(pto.geom, rvmp.geom)' #COMANDO EM SQL A SER EXECUTADO. SERÁ SELECIONADO O VÉRTICE INICIAL DO GRAFO i
+
+        cur.execute(sql) #EXECUTANDO O COMANDO
+
+        dados_consultados = cur.fetchall() #RETORNANDO OS DADOS
+
+        id_ini = dados_consultados[0][0]
+
+        #CONSULTANDO O VÉRTICE FINAL DO GRAFO i
+
+        sql = f'SELECT rvmp.id FROM (SELECT ST_LineInterpolatePoints(ST_LineMerge(geom), 1) as geom FROM {tabela_grafos} WHERE id0 = {id_i}) as pto, {tabela_vertices} rvmp WHERE ST_Intersects(pto.geom, rvmp.geom)' #COMANDO EM SQL A SER EXECUTADO. SERÁ SELECIONADO O VÉRTICE FINAL DO GRAFO i
+
+        cur.execute(sql) #EXECUTANDO O COMANDO
+
+        dados_consultados = cur.fetchall() #RETORNANDO OS DADOS
+
+        id_fim = dados_consultados[0][0]
+
+        #ATUALIZANDO A TABELA DOS GRAFOS DA REDE:
+
+        sql = f"update {tabela_grafos} set source ='{id_ini}', target = '{id_fim}' where id0 = {id_i};" #COMANDO EM SQL A SER EXECUTADO. SERÁ ATRIBUITO A TABELA DOS GRAFOS A SOURCE E TARGET ENCONTRADA.
+
+        cur.execute(sql) #EXECUTANDO O COMANDO
+
+        con.commit() #FINALIZANDO A EXECUÇÃO DO COMANDO
+
+        print(f'ID: {id_i} -> v_ini = {id_ini} e v_fim = {id_fim}')
+
+    cur.close() #ENCERRANDO A INSTÂNCIA CRIADA PARA A EXECUÇÃO DO COMANDO
+
+    con.close() #ENCERRANDO A CONEXÃO COM O BANCO DE DADOS
+    
+#### 12.14. VERIFICANDO VÉRTICES INICIAIS E FINAIS DAS LINHAS COM SENTIDO UNIDIRECIONAL `(SQL)`
+
+Novamente é necessário verificar no `QGIS` se os campos source e target das linhas com sentido unidirecional estão corretos. Mas mesmas linhas com problemas descritas no `tópico 12.8` apresentarão problemas. São elas: id 1,2, 37,38, 51, 52, 63 e 64. Para corrigir utilizou-se o seguinte comando:
+
+    -- id do grafo: id_grafo = 1 e id0 = 63 e 64
+    UPDATE rede_vicosa_mp
+    SET source = '1001'
+    WHERE id0 = 63;
+
+    UPDATE rede_vicosa_mp
+    SET target = '46'
+    WHERE id0 = 63;
+    ------
+    UPDATE rede_vicosa_mp
+    SET source = '47'
+    WHERE id0 = 64;
+
+    UPDATE rede_vicosa_mp
+    SET target = '1001'
+    WHERE id0 = 64;
+
+    -- id do grafo: id_grafo = 62 e id0 = 1 e 2
+    UPDATE rede_vicosa_mp
+    SET source = '1062'
+    WHERE id0 = 1;
+
+    UPDATE rede_vicosa_mp
+    SET target = '23'
+    WHERE id0 = 1;
+    ------
+    UPDATE rede_vicosa_mp
+    SET source = '80'
+    WHERE id0 = 2;
+
+    UPDATE rede_vicosa_mp
+    SET target = '1062'
+    WHERE id0 = 2;
+
+    -- id do grafo: id_grafo = 71 e id0 = 37 e 38
+    UPDATE rede_vicosa_mp
+    SET source = '1071'
+    WHERE id0 = 37;
+
+    UPDATE rede_vicosa_mp
+    SET target = '24'
+    WHERE id0 = 37;
+    -------
+    UPDATE rede_vicosa_mp
+    SET source = '25'
+    WHERE id0 = 38;
+
+    UPDATE rede_vicosa_mp
+    SET target = '1071'
+    WHERE id0 = 38;
+
+    -- id do grafo: id_grafo = 96 e id0 = 51 e 52
+    UPDATE rede_vicosa_mp
+    SET source = '43'
+    WHERE id0 = 51;
+
+    UPDATE rede_vicosa_mp
+    SET target = '1096'
+    WHERE id0 = 51;
+    -----
+    UPDATE rede_vicosa_mp
+    SET source = '1096'
+    WHERE id0 = 52;
+
+    UPDATE rede_vicosa_mp
+    SET target = '42'
+    WHERE id0 = 52;
+    
+ #### 12.15. RENOEMANDO ALGUMAS COLUNAS DA REDE E RECRIANDO A TOPOLOGIA DA REDE:
+
+     ALTER TABLE rede_vicosa_mp
+    RENAME COLUMN geom TO the_geom;
+
+    ALTER TABLE rede_vicosa_mp
+    RENAME COLUMN id0 TO id;
+
+    ALTER TABLE rede_vicosa_mp
+    RENAME COLUMN reverse_co to reverse_cost;
+
+    SELECT pgr_createTopology('rede_vicosa_mp', 1);
+    
+  Após esse processo a rede está pronta para o cálculo da acessibilidade.
