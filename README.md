@@ -786,22 +786,22 @@ Os códigos utilizados são semelhantes.
 
 **OBS. 1.: Esses códigos estão disponíveis em SCRIPTS_DISSERTACAO > SCRIPTS_PYTHON > av_dissertacao > projetos > 1_ORGANIZAR_DADOS > VIÇOSA > ORGANIZAR_DADOS_DAS_VIAS_COM_O_ANEL.ipyb**
 
-**OBS. 2.: A largura do anél viário foi adicionada manualmente (largura = 16m, conforme propõe Silva (2012)). A pavimentação também foi colocada de forma manual (pavimentação = asfalto). A atributo `tipo_pm` foi preenchido manualmente (tipo_pm = anel_viario). A declividade da parte mais ao sul do anél foi calculada de forma manual, pois nesse trecho não há informações sufientes de MDE, portanto a declividade foi calculada com as informações disponíveis.
+**OBS. 2.: A largura do anél viário foi adicionada manualmente (largura = 16m, conforme propõe Silva (2012)). A pavimentação também foi colocada de forma manual (pavimentação = asfalto). A atributo `tipo_pm` foi preenchido manualmente (tipo_pm = anel_viario). A declividade da parte mais ao sul do anél foi calculada de forma manual, pois nesse trecho não há informações sufientes de MDE, portanto a declividade foi calculada com as informações disponíveis.**
 
 ### 12. CÁLCULO DA CONECTIVIDADE E ACESSIBILIDADE
 
 Essa parte foi dividida em duas etapas: pré-processamento e cálculos. Foi utilizados comandos em linguaguem `SQL` e linguaguem `Python` nessas etapas. Nos título dos tópicos terá informações de os comandos foram executados no pgAdmin (comando SQL) ou no Jupyter Notebook (comando Python).
 
-#### 12. PRÉ-PROCESSAMENTO
+#### 12.1. PRÉ-PROCESSAMENTO
 
-#### 12.1. CRIAÇÃO DA REDE A SER ANALISADA `(SQL)`
+#### 12.1.1. CRIAÇÃO DA REDE A SER ANALISADA `(SQL)`
 
 Uma cópia da tabela `via_grafos` foi criada e nomeada como `rede_vicosa` com o seguinte comando:
 
     -- CRIANDO UMA NOVA TABELA SIMILAR AO 'vias_grafos' CHAMADA 'rede_vicosa':
     SELECT * INTO rede_vicosa FROM vias_grafos ORDER BY id;
     
-#### 12.2. CRIAÇÃO DE NOVAS COLUNAS PARA A TABELA `(SQL)`
+#### 12.1.2. CRIAÇÃO DE NOVAS COLUNAS PARA A TABELA `(SQL)`
 
 Para resolver problemas de rede com a extensão `pgRouting` é necessário a criação das colunas de nó inicial, no final, custo e custo reverso. Utiliza-se o seguinte comando:
 
@@ -812,12 +812,12 @@ Para resolver problemas de rede com a extensão `pgRouting` é necessário a cri
     ADD cost REAL,
     ADD reverse_cost REAL;
     
-#### 12.3. RENOMEANDO O CAMPO 'geom' PARA 'the_geom' `(SQL)`
+#### 12.1.3. RENOMEANDO O CAMPO 'geom' PARA 'the_geom' `(SQL)`
 
     ALTER TABLE rede_vicosa
     RENAME COLUMN geom TO the_geom;
     
-#### 12.4. REDEFININDO OS DADOS DE DIREÇÃO DA VIA PARA 'YES' OU 'NO' `(SQL)`
+#### 12.1.4. REDEFININDO OS DADOS DE DIREÇÃO DA VIA PARA 'YES' OU 'NO' `(SQL)`
 
     -- VIAS COM MÃO ÚNICA:
     UPDATE rede_vicosa SET oneway = 'YES' WHERE oneway = 'TF';
@@ -825,7 +825,7 @@ Para resolver problemas de rede com a extensão `pgRouting` é necessário a cri
     -- VIAS COM MÃO DUPLA:
     UPDATE rede_vicosa SET oneway = 'NO' WHERE oneway = 'B';
     
-#### 12.5. DEFININDO OS CUSTOS DOS ARCOS `(SQL)`
+#### 12.1.5. DEFININDO OS CUSTOS DOS ARCOS `(SQL)`
 
     -- DEFININDO CUSTOS 1 PARA TODOS OS VÉRTICES:
     UPDATE rede_vicosa SET cost = 1, reverse_cost = 1;
@@ -833,13 +833,13 @@ Para resolver problemas de rede com a extensão `pgRouting` é necessário a cri
     -- DEFININDO O CUSTO REVERSOS = -1 PARA OS GRAFOS COM DIREÇÃO ÚNICA:
     UPDATE rede_vicosa SET reverse_cost = '-1' WHERE oneway = 'YES';
 
-#### 12.6. CRIANDO A TOPOLOGIA DA REDE `(SQL)`
+#### 12.1.6. CRIANDO A TOPOLOGIA DA REDE `(SQL)`
 
     SELECT pgr_createTopology('rede_vicosa', 1);
     
 As colunas source e target serão preenchidas com id's de vérticies iniciais e finais. Uma nova tabela surgirá com a geometria dos vértices gerados.
 
-#### 12.7. CRIANDO VÉRTICES NO MEIO DAS LINHAS `(SQL)`
+#### 12.1.7. CRIANDO VÉRTICES NO MEIO DAS LINHAS `(SQL)`
 
 Para o cálculo da acessibilidade é necessário computar o custo entre arcos, porém, a extensão só permite o cálculo entre nós. Para contornar esse problema, criou-se nós no meio de cada linha. O custo para atravessar esses nós centrais (com o custo de cada metade de arco igual a 0,5) é igual o custo entre arcos.
 
@@ -857,7 +857,7 @@ A tabela com pontos intermediários chama-se `mid_points` e para criá-la usou o
      ON mid_points
      USING GIST (geom);
      
-#### 12.8. VERIFICAR SE AS COLUNAS SOURCE E TARGET ESTÃO CORRETAS `(SQL)`
+#### 12.1.8. VERIFICAR SE AS COLUNAS SOURCE E TARGET ESTÃO CORRETAS `(SQL)`
 
 Foi necessário verificar no `QGIS` se as colunas source e target estão preenchidas corretamente com os valores de id's dos vértices para as linhas com sentido de via unidirecional. Foi possível constatar que as linhas com id 1, 62, 71 e 96 estavam com o sentido invertido e isso foi consertado com os seguintes comandos:
 
@@ -897,11 +897,11 @@ Foi necessário verificar no `QGIS` se as colunas source e target estão preench
     SET target = '42'
     WHERE id = 96;
     
- #### 12.9. CRIANDO A REDE COM PONTOS INTERMEDIÁRIOS ATRAVÉS DO QGIS
+ #### 12.1.9. CRIANDO A REDE COM PONTOS INTERMEDIÁRIOS ATRAVÉS DO QGIS
  
  Para criar a rede com pontos intermediários é necessário usar o software `QGIS` através da ferramenta `Connect nodes to lines` presente no complemento `Networks`. Criou-se uma cópia da camada `rede_vicosa` renomeando-a para `rede_vicosa_mp_prov` e a ferramenta foi utilizada nessa nova camada e o resultado foi importado para dentro do banco de dados utilizando o Gerenciador BD do `QGIS`. Durante a importação o id dessa rede foi nomeado como id0.
  
- #### 12.10. REMOVENTO ELEMENTOS INUTEIS DA `rede_vicosa_mp_prov` `(SQL)`
+ #### 12.1.10. REMOVENTO ELEMENTOS INUTEIS DA `rede_vicosa_mp_prov` `(SQL)`
  
  A criação dessa nova rede não resultou em um arquivo pronto para ser trabalhado e novos processamento foram realizados para "limpar" a tabela. A tabela limpa foi nomeada como `rede_vicosa_mp` e os comandos foram os seguintes:
  
@@ -925,7 +925,7 @@ Foi necessário verificar no `QGIS` se as colunas source e target estão preench
     ALTER TABLE rede_vicosa_mp
     RENAME COLUMN id TO id_grafo;
     
-#### 12.11. RENOMEANDO O id DA TABELA `mid_points` `(SQL)`
+#### 12.1.11. RENOMEANDO O id DA TABELA `mid_points` `(SQL)`
 
 A tabela mid_points apresenta o id de cada ponto igual ao id de sua respectiva linha da tabela `rede_vicosa`. Para diferenciar os pontos intermediários dos pontos finais e iniciais de cada linha original da `rede_vicosa`, escolheu-se somar 1000 ao valor do id do ponto intermediário. Dessa forma fica fácil de saber que o ponto de id 1050 da tabela `rede_vicosa_mp` corresponde ao ponto intermediário da linha 50, enquanto o ponto com id 50 é algum vértice inicial e/ou final de alguma linha. O comando utilizado foi:
 
@@ -941,7 +941,7 @@ A tabela mid_points apresenta o id de cada ponto igual ao id de sua respectiva l
 
     SELECT * FROM mid_points;
     
-   #### 12.12. CRIANDO A TABELA `rede_vicosa_mp_vertices` COM TODOS OS VÉRTICES DA `rede_vicosa_mp` (VÉRTICES DE INÍCIO E FIM DA `rede_vicosa` E VÉRTICES DA TABELA `mid_points` `(SQL)`
+#### 12.1.12. CRIANDO A TABELA `rede_vicosa_mp_vertices` COM TODOS OS VÉRTICES DA `rede_vicosa_mp` (VÉRTICES DE INÍCIO E FIM DA `rede_vicosa` E VÉRTICES DA TABELA `mid_points` `(SQL)`
    
        --CRIANDO A TABELA rede_vicosa_mp_vertices QUE POSSUIRÁ TODOS OS VERTICES DA REDE PARA CALCULO DE ACESSIBILIDADE:
     SELECT *
@@ -956,15 +956,15 @@ A tabela mid_points apresenta o id de cada ponto igual ao id de sua respectiva l
 
     SELECT * FROM rede_vicosa_mp_vertices;
 
-#### 12.13. COMPLETANDO A TABELA `rede_vicosa_mp` COM OS VÉRTICES INICIAIS E FINAIS DE CADA LINHA `(PYTHON)`
+#### 12.1.13. COMPLETANDO A TABELA `rede_vicosa_mp` COM OS VÉRTICES INICIAIS E FINAIS DE CADA LINHA `(PYTHON)`
 
 Para completar as colunas source e target da tabela `rede_vicosa_mp` utilizou-se um código em linguagem Python. O código realiza uma estrutura de repetição que percorre da linha 1 até a linha de id máximo da tabela e analisa qual elemento da tabela `rede_vicosa_mp_vertices` está contido no inicio e fim da linha em análise. Em seguida atualiza as colunas source e target com os valores encontrados. Segue o código:
 
-#### 12.13.1. IMPORTANDO O PACOTE psycopg2 QUE CONECTA O PYTHON COM O POSTGRE-SQL E O PACOTE pandas PARA ORGANIZAR AS TABELAS DE ACESSIBILIDADE `(PYTHON)`
+#### 12.1.13.1. IMPORTANDO O PACOTE psycopg2 QUE CONECTA O PYTHON COM O POSTGRE-SQL E O PACOTE pandas PARA ORGANIZAR AS TABELAS DE ACESSIBILIDADE `(PYTHON)`
 
     import psycopg2 as pg
     
-#### 12.13.2. CONECTANDO AO BANCO DE DADOS `(PYTHON)`
+#### 12.1.13.2. CONECTANDO AO BANCO DE DADOS `(PYTHON)`
 
     con = pg.connect(host='localhost', 
                     database='dissertacao',
@@ -975,7 +975,7 @@ Para completar as colunas source e target da tabela `rede_vicosa_mp` utilizou-se
 
     # OBS: O servidor hospedado na máquina local será conectado no banco de dados nomeado rede_exemplo, que possui usuário postgres e senha admin.
 
-#### 12.13.3. VENDO QUANTOS GRAFOS A NOVA MALHA POSSUI `(PYTHON)`
+#### 12.1.13.3. VENDO QUANTOS GRAFOS A NOVA MALHA POSSUI `(PYTHON)`
 
     tabela_grafos = 'rede_vicosa_mp' #TABELA COM A REDE
     tabela_vertices = 'rede_vicosa_mp_vertices'
@@ -984,7 +984,7 @@ Para completar as colunas source e target da tabela `rede_vicosa_mp` utilizou-se
     dados_consultados = cur.fetchall() #RETORNANDO OS DADOS
     id_max = dados_consultados[0][0] #ID MÁXIMO DA MALHA
 
-#### 12.13.4. DEFININDO OS VÉRTICES DE INICIO E FIM `(PYTHON)`
+#### 12.1.13.4. DEFININDO OS VÉRTICES DE INICIO E FIM `(PYTHON)`
 
     for id_i in range (1, id_max + 1):
         #CONSULTANDO O VÉRTICE INICIAL DO GRAFO i:
@@ -1021,7 +1021,7 @@ Para completar as colunas source e target da tabela `rede_vicosa_mp` utilizou-se
 
     con.close() #ENCERRANDO A CONEXÃO COM O BANCO DE DADOS
     
-#### 12.14. VERIFICANDO VÉRTICES INICIAIS E FINAIS DAS LINHAS COM SENTIDO UNIDIRECIONAL `(SQL)`
+#### 12.1.14. VERIFICANDO VÉRTICES INICIAIS E FINAIS DAS LINHAS COM SENTIDO UNIDIRECIONAL `(SQL)`
 
 Novamente é necessário verificar no `QGIS` se os campos source e target das linhas com sentido unidirecional estão corretos. Mas mesmas linhas com problemas descritas no `tópico 12.8` apresentarão problemas. São elas: id 1,2, 37,38, 51, 52, 63 e 64. Para corrigir utilizou-se o seguinte comando:
 
@@ -1093,7 +1093,7 @@ Novamente é necessário verificar no `QGIS` se os campos source e target das li
     SET target = '42'
     WHERE id0 = 52;
     
- #### 12.15. RENOEMANDO ALGUMAS COLUNAS DA REDE E RECRIANDO A TOPOLOGIA DA REDE:
+ #### 12.1.15. RENOEMANDO ALGUMAS COLUNAS DA REDE E RECRIANDO A TOPOLOGIA DA REDE:
 
      ALTER TABLE rede_vicosa_mp
     RENAME COLUMN geom TO the_geom;
@@ -1107,3 +1107,14 @@ Novamente é necessário verificar no `QGIS` se os campos source e target das li
     SELECT pgr_createTopology('rede_vicosa_mp', 1);
     
   Após esse processo a rede está pronta para o cálculo da acessibilidade.
+  
+  **Os arquivos com os códigos executados estão localizados em: **
+  **Códigos Python: SCRIPTS_DISSERTACAO > SCRIPTS_PYTHON > av_dissertacao > projetos > 1_ORGANIZAR_DADOS > VIÇOSA**
+  **Códigos SQL: SCRIPTS_DISSERTACAO > SCRIPTS_SQL > pgRouting
+  
+  
+
+#### 12.2. CÁLCULO DA CONECTIVIDADE E ACESSIBILIDADE DA REDE VIÁRIA SEM O ANEL `(PYTHON)`
+
+
+
