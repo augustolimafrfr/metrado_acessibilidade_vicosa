@@ -1,5 +1,5 @@
 # TUTORIAL PARA ORGANIZAÇÃO DA BASE DE DADOS - ACESSIBILIDADE VIAS DE VIÇOSA
-Este é um tutorial com o passo-a-passo de todo o procedimento metodológico utilizado na dissertação de mestrado para a preparação da base de dados do município de Viçosa com o objetivo de calcular a acessibilidade de suas principais vias. Os softwares utilizados durante o processo foram: `PostgreeSQL 14` (com o pacote de extensões para dados espaciais PostGis), `Python 3` (juntamente com a IDE Jupyter Notebook), `QGIS 3.22.7` e `ArcGIS 10.5`.
+Este é um tutorial com o passo-a-passo de todo o procedimento metodológico utilizado na dissertação de mestrado para a preparação da base de dados do município de Viçosa com o objetivo de calcular a acessibilidade de suas principais vias. Os softwares utilizados durante o processo foram: `PostgreeSQL 14` (com o pacote de extensões para dados espaciais PostGis) através do gerenciador `pgAdmin`, `Python 3` (juntamente com a IDE Jupyter Notebook), `QGIS 3.22.7` e `ArcGIS 10.5`.
 
 O objetivo desse tutorial é explicar de forma detalhada os procedimentos realizados para organizar a base de dados das vias de Viçosa e com isso, será possível entender o processo e replicá-lo para demais bases de dados.
 
@@ -434,7 +434,7 @@ Após a conclusão dos processos acima, a tabela `via_grafos` foi preenchida e a
     cur.close() #ENCERRANDO A INSTÂNCIA CRIADA PARA A EXECUÇÃO DO COMANDO
     con.close() #ENCERRANDO A CONEXÃO COM O BANCO DE DADOS
 
-**OBS.: Esses códigos estão disponíveis em SCRIPTS_DISSERTACAO > SCRIPTS_PYTHON > av_dissertacao > projetos > 1_ORGANIZAR_DADOS > VIÇOSA > ORGANIZAR_DADOS_DAS_VIAS _SEM_O_ANEL.ipyb**
+**OBS.: Esses códigos estão disponíveis em SCRIPTS_DISSERTACAO > SCRIPTS_PYTHON > av_dissertacao > projetos > 1_ORGANIZAR_DADOS > VIÇOSA > ORGANIZAR_DADOS_DAS_VIAS_SEM_O_ANEL.ipyb**
 
 ### 10. PREPARAÇÃO DA REDE COM ANÉL VIÁRIO
 
@@ -784,3 +784,174 @@ Os códigos utilizados são semelhantes.
     cur.close() #ENCERRANDO A INSTÂNCIA CRIADA PARA A EXECUÇÃO DO COMANDO
     con.close() #ENCERRANDO A CONEXÃO COM O BANCO DE DADOS
 
+**OBS. 1.: Esses códigos estão disponíveis em SCRIPTS_DISSERTACAO > SCRIPTS_PYTHON > av_dissertacao > projetos > 1_ORGANIZAR_DADOS > VIÇOSA > ORGANIZAR_DADOS_DAS_VIAS_COM_O_ANEL.ipyb**
+
+**OBS. 2.: A largura do anél viário foi adicionada manualmente (largura = 16m, conforme propõe Silva (2012)). A pavimentação também foi colocada de forma manual (pavimentação = asfalto). A atributo `tipo_pm` foi preenchido manualmente (tipo_pm = anel_viario). A declividade da parte mais ao sul do anél foi calculada de forma manual, pois nesse trecho não há informações sufientes de MDE, portanto a declividade foi calculada com as informações disponíveis.
+
+### 12. CÁLCULO DA CONECTIVIDADE E ACESSIBILIDADE
+
+Essa parte foi dividida em duas etapas: pré-processamento e cálculos. Foi utilizados comandos em linguaguem `SQL` e linguaguem `Python` nessas etapas. Nos título dos tópicos terá informações de os comandos foram executados no pgAdmin (comando SQL) ou no Jupyter Notebook (comando Python).
+
+#### 12. PRÉ-PROCESSAMENTO
+
+#### 12.1. CRIAÇÃO DA REDE A SER ANALISADA `(SQL)`
+
+Uma cópia da tabela `via_grafos` foi criada e nomeada como `rede_vicosa` com o seguinte comando:
+
+    -- CRIANDO UMA NOVA TABELA SIMILAR AO 'vias_grafos' CHAMADA 'rede_vicosa':
+    SELECT * INTO rede_vicosa FROM vias_grafos ORDER BY id;
+    
+#### 12.2. CRIAÇÃO DE NOVAS COLUNAS PARA A TABELA `(SQL)`
+
+Para resolver problemas de rede com a extensão `pgRouting` é necessário a criação das colunas de nó inicial, no final, custo e custo reverso. Utiliza-se o seguinte comando:
+
+    -- CRIANDO OS CAMPOS PARA OS VÉRTICES DE FIM E INICIO DO GRAFO:
+    ALTER TABLE rede_vicosa
+    ADD source INT4,
+    ADD target INT4,
+    ADD cost REAL,
+    ADD reverse_cost REAL;
+    
+#### 12.3. RENOMEANDO O CAMPO 'geom' PARA 'the_geom' `(SQL)`
+
+    ALTER TABLE rede_vicosa
+    RENAME COLUMN geom TO the_geom;
+    
+#### 12.4. REDEFININDO OS DADOS DE DIREÇÃO DA VIA PARA 'YES' OU 'NO' `(SQL)`
+
+    -- VIAS COM MÃO ÚNICA:
+    UPDATE rede_vicosa SET oneway = 'YES' WHERE oneway = 'TF';
+
+    -- VIAS COM MÃO DUPLA:
+    UPDATE rede_vicosa SET oneway = 'NO' WHERE oneway = 'B';
+    
+#### 12.5. DEFININDO OS CUSTOS DOS ARCOS `(SQL)`
+
+    -- DEFININDO CUSTOS 1 PARA TODOS OS VÉRTICES:
+    UPDATE rede_vicosa SET cost = 1, reverse_cost = 1;
+
+    -- DEFININDO O CUSTO REVERSOS = -1 PARA OS GRAFOS COM DIREÇÃO ÚNICA:
+    UPDATE rede_vicosa SET reverse_cost = '-1' WHERE oneway = 'YES';
+
+#### 12.6. CRIANDO A TOPOLOGIA DA REDE `(SQL)`
+
+    SELECT pgr_createTopology('rede_vicosa', 1);
+    
+As colunas source e target serão preenchidas com id's de vérticies iniciais e finais. Uma nova tabela surgirá com a geometria dos vértices gerados.
+
+#### 12.7. CRIANDO VÉRTICES NO MEIO DAS LINHAS `(SQL)`
+
+Para o cálculo da acessibilidade é necessário computar o custo entre arcos, porém, a extensão só permite o cálculo entre nós. Para contornar esse problema, criou-se nós no meio de cada linha. O custo para atravessar esses nós centrais (com o custo de cada metade de arco igual a 0,5) é igual o custo entre arcos.
+
+A tabela com pontos intermediários chama-se `mid_points` e para criá-la usou o seguinte comando:
+
+    -- CRIANDO OS VÉRTICES NO MEIO DE CADA GRAFO:
+    CREATE TABLE mid_points AS
+    SELECT id, ST_LineInterpolatePoint(ST_LineMerge(the_geom), 0.5) as geom
+    FROM rede_vicosa;
+
+    ALTER TABLE mid_points
+    ADD CONSTRAINT mid_points_pk PRIMARY KEY (id);
+
+    CREATE INDEX sidx_mid_points
+     ON mid_points
+     USING GIST (geom);
+     
+#### 12.8. VERIFICAR SE AS COLUNAS SOURCE E TARGET ESTÃO CORRETAS
+
+Foi necessário verificar no `QGIS` se as colunas source e target estão preenchidas corretamente com os valores de id's dos vértices para as linhas com sentido de via unidirecional. Foi possível constatar que as linhas com id 1, 62, 71 e 96 estavam com o sentido invertido e isso foi consertado com os seguintes comandos:
+
+    -- id do grafo: 1
+    UPDATE rede_vicosa
+    SET source = '47'
+    WHERE id = 1;
+
+    UPDATE rede_vicosa
+    SET target = '46'
+    WHERE id = 1;
+
+    -- id do grafo: 62
+    UPDATE rede_vicosa
+    SET source = '80'
+    WHERE id = 62;
+
+    UPDATE rede_vicosa
+    SET target = '23'
+    WHERE id = 62;
+
+    -- id do grafo: 71
+    UPDATE rede_vicosa
+    SET source = '25'
+    WHERE id = 71;
+
+    UPDATE rede_vicosa
+    SET target = '24'
+    WHERE id = 71;
+
+    -- id do grafo: 96
+    UPDATE rede_vicosa
+    SET source = '43'
+    WHERE id = 96;
+
+    UPDATE rede_vicosa
+    SET target = '42'
+    WHERE id = 96;
+    
+ #### 12.9. CRIANDO A REDE COM PONTOS INTERMEDIÁRIOS ATRAVÉS DO QGIS
+ 
+ Para criar a rede com pontos intermediários é necessário usar o software `QGIS` através da ferramenta `Connect nodes to lines` presente no complemento `Networks`. Criou-se uma cópia da camada `rede_vicosa` renomeando-a para `rede_vicosa_mp_prov` e a ferramenta foi utilizada nessa nova camada e o resultado foi importado para dentro do banco de dados utilizando o Gerenciador BD do `QGIS`. Durante a importação o id dessa rede foi nomeado como id0.
+ 
+ #### 12.10. REMOVENTO ELEMENTOS INUTEIS DA `rede_vicosa_mp_prov` `(SQL)`
+ 
+ A criação dessa nova rede não resultou em um arquivo pronto para ser trabalhado e novos processamento foram realizados para "limpar" a tabela. A tabela limpa foi nomeada como `rede_vicosa_mp` e os comandos foram os seguintes:
+ 
+     CREATE TABLE rede_vicosa_mp AS
+    SELECT rvmpp.id, rvmpp.comp_via, rvmpp.nome_rua, rvmpp.tipo_pm, rvmpp.largura_me, rvmpp.pavimento, rvmpp.oneway, rvmpp.decliv_me, rvmpp.source, rvmpp.target, rvmpp.cost, rvmpp.reverse_co, ST_Difference(rvmpp.geom, ptos.geom) as geom 
+    FROM (SELECT rvmpp.*
+    FROM rede_vicosa_mp_prov rvmpp, mid_points mp
+    WHERE ST_Contains(mp.geom, rvmpp.geom)) as ptos, rede_vicosa_mp_prov rvmpp
+    WHERE ST_Intersects(rvmpp.geom, ptos.geom);
+
+    DELETE FROM rede_vicosa_mp
+    WHERE ST_LENGTH(geom) = 0;
+
+    ALTER TABLE rede_vicosa_mp
+    ADD COLUMN id0 SERIAL PRIMARY KEY;
+    
+     --DELETANDO A TABELA rede_vicosa_mp_prov, JÁ QUE A DEFINITIVA FOI CRIADA
+    DROP TABLE rede_vicosa_mp_prov;
+
+    -- ALTERANDO A TABELA REDE_VICOSA_MP:
+    ALTER TABLE rede_vicosa_mp
+    RENAME COLUMN id TO id_grafo;
+    
+#### 12.11. RENOMEANDO O id DA TABELA `mid_points` `(SQL)`
+
+A tabela mid_points apresenta o id de cada ponto igual ao id de sua respectiva linha da tabela `rede_vicosa`. Para diferenciar os pontos intermediários dos pontos finais e iniciais de cada linha original da `rede_vicosa`, escolheu-se somar 1000 ao valor do id do ponto intermediário. Dessa forma fica fácil de saber que o ponto de id 1050 da tabela `rede_vicosa_mp` corresponde ao ponto intermediário da linha 50, enquanto o ponto com id 50 é algum vértice inicial e/ou final de alguma linha. O comando utilizado foi:
+
+    --ALTERANDO A TABELA 'mid_points' PARA INCLUIR UMA COLUNA CHAMADA ID_GRAFO E ALTERAR O ID PARA 1000 + id DO GRAFO.
+    ALTER TABLE mid_points
+    ADD id_grafo INT4;
+
+    UPDATE mid_points
+    SET id_grafo = id;
+
+    UPDATE mid_points
+    SET id = 1000 + id;
+
+    SELECT * FROM mid_points;
+    
+   #### 12.12. CRIANDO A TABELA `rede_vicosa_mp_vertices` COM TODOS OS VÉRTICES DA `rede_vicosa_mp` (VÉRTICES DE INÍCIO E FIM DA `rede_vicosa` E VÉRTICES DA TABELA `mid_points` `(SQL)`
+   
+       --CRIANDO A TABELA rede_vicosa_mp_vertices QUE POSSUIRÁ TODOS OS VERTICES DA REDE PARA CALCULO DE ACESSIBILIDADE:
+    SELECT *
+    INTO rede_vicosa_mp_vertices
+    FROM mid_points;
+
+    ALTER TABLE rede_vicosa_mp_vertices
+    ADD CONSTRAINT rede_vicosa_mp_vertices_pk PRIMARY KEY (id);
+
+    INSERT INTO rede_vicosa_mp_vertices (id, geom)
+    (SELECT id, the_geom as geom FROM rede_vicosa_vertices_pgr);
+
+    SELECT * FROM rede_vicosa_mp_vertices;
