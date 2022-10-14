@@ -19,7 +19,7 @@ Os dados utilizados nesse trabalho foram fornecidos por Vieira e Castro (2021) e
 Diverssos atributos presentes em `Rede_Viaria_RSU_2021` não serão úteis para esse trabalho e outros serão cálculados novamente. Portanto, da tabela de atributos dos dados originais, aqueles escolhidos foram: **largura da via**, **pavimento**, **sentido da via** e todos os demais atributos foram excluidos através da ferramenta `Editar campos` do software `QGIS`. Dois novos campos foram criados: **nome da rua** e **tipo_pm**, sendo que o primeiro será utilizado para incluir o nome das vias e o segundo a classificação de acordo com o plano de mobilidade.
 
 ### 3. SELEÇÃO DAS VIAS A SEREM UTILIZADAS:
-As vias mencionadas no Plano de Mobilidade de Viçosa foram selecionadas utilizando o `Open Street Map` e o `Google Maps` como pano de fundo. Durante esse processo os campos os campos **nome da rua **e **tipo_pm** foram preenchidos.
+As vias mencionadas no Plano de Mobilidade de Viçosa foram selecionadas utilizando o `Open Street Map` e o `Google Maps` como pano de fundo. Durante esse processo os campos os campos **nome da rua** e **tipo_pm** foram preenchidos.
 
 ### 4. GARATINDO A INTEGRIDADE TOPOLÓGICA DA REDE:
 
@@ -42,6 +42,8 @@ Na ferramenta mencionada selecionou-se a malha viária (que não está na forma 
 ### 7. GERAÇÃO DO MDE
 
 O MDE de Viçosa foi gerado a partir do arquivo `declividade_pontos_cotados_SAAE`. Para isso, utilizou-se a ferramenta `Interpolação IDW` do software `QGIS`. O novo arquivo foi recortado através da ferramenta `Recortar raster pela extensão...` com o objetivo de reduzir a extensão do MDE de forma que englobe apenas a área de estudo. Apesar desse passo não ser obrigatório, é interessante recortar o arquivo raster com o objetivo de reduzir o seu tamanho e facilitar os processamentos. O arquivo que contem o MDE de Viçosa foi nomeado como `mde_vicosa`.
+
+**O MDE do município se encontra na pasta `DADOS_INTERMEDIARIOS`**
 
 ### 8. IMPORTANDO TODOS OS DADOS PARA O BANCO DE DADOS
 
@@ -436,11 +438,15 @@ Após a conclusão dos processos acima, a tabela `via_grafos` foi preenchida e a
 
 **OBS.: Esses códigos estão disponíveis em SCRIPTS_DISSERTACAO > SCRIPTS_PYTHON > av_dissertacao > projetos > 1_ORGANIZAR_DADOS > VIÇOSA > ORGANIZAR_DADOS_DAS_VIAS_SEM_O_ANEL.ipyb**
 
+**O arquivo `vias_grafos` preenchido se encontra na pasta `DADOS_FINAIS`.**
+
 ### 10. PREPARAÇÃO DA REDE COM ANÉL VIÁRIO
 
 Para criar a rede com o anél viário proposto por Silva (2012) utilizou-se do mapa com seu traçado disponibilizado em sua tese. O mapa foi georreferenciado através da ferramenta `Georreferenciador` do software `QGIS` e serviu como pano de fundo para selecionar da base disponibilizada por Vieira e Castro (2021) aquelas vias que compunham o anel. A união do anel viário com a malha atual de Viçosa gerou uma malha viária fictícia com a simulação do Anel Viário. Os `passos 4 e 5 ` desse tutorial foram realizados para essa nova malha com o objetivo de garantir a integridade topológica da rede e transformá-la na forma de grafos. Com isso, gerou-se uma rede nomeada como `vias_grafos_anel` com os mesmo atributos da rede `via_grafos` mais um adicional: id_grafo_semanel, que possui o objetivo indicar qual o id correspondente da tabela `via_grafos` na tabela `via_grafos_anel`. Portanto, os atributos dessa nova rede são: **nome da rua**, **tipo_pm**, **comprimento da via**, **largura media**, **pavimentaçao**, **sentido da via**, **declividade media** e **id_grafo_semanel**.
 
 Esse dado foi importado para o banco de dados através da ferramenta `Gerenciador DB...`.
+
+**O arquivo `vias_grafos_anel` se encontra na pasta `DADOS_INTERMEDIARIOS`.**
 
 ### 11. COMPLETANDO O ARQUIVO VIA_GRAFOS_ANEL
 
@@ -783,10 +789,13 @@ Os códigos utilizados são semelhantes.
 
     cur.close() #ENCERRANDO A INSTÂNCIA CRIADA PARA A EXECUÇÃO DO COMANDO
     con.close() #ENCERRANDO A CONEXÃO COM O BANCO DE DADOS
+    
 
 **OBS. 1.: Esses códigos estão disponíveis em SCRIPTS_DISSERTACAO > SCRIPTS_PYTHON > av_dissertacao > projetos > 1_ORGANIZAR_DADOS > VIÇOSA > ORGANIZAR_DADOS_DAS_VIAS_COM_O_ANEL.ipyb**
 
 **OBS. 2.: A largura do anél viário foi adicionada manualmente (largura = 16m, conforme propõe Silva (2012)). A pavimentação também foi colocada de forma manual (pavimentação = asfalto). A atributo `tipo_pm` foi preenchido manualmente (tipo_pm = anel_viario). A declividade da parte mais ao sul do anél foi calculada de forma manual, pois nesse trecho não há informações sufientes de MDE, portanto a declividade foi calculada com as informações disponíveis.**
+
+**O arquivo `vias_grafos_anel` preenchido se encontra na pasta `DADOS_FINAIS.`**
 
 ### 12. CÁLCULO DA CONECTIVIDADE E ACESSIBILIDADE
 
@@ -1112,9 +1121,197 @@ Novamente é necessário verificar no `QGIS` se os campos source e target das li
   **Códigos Python: SCRIPTS_DISSERTACAO > SCRIPTS_PYTHON > av_dissertacao > projetos > 1_ORGANIZAR_DADOS > VIÇOSA**
   **Códigos SQL: SCRIPTS_DISSERTACAO > SCRIPTS_SQL > pgRouting
   
+  **Os arquivos `rede_vicosa`, `rede_vicosa_vertices_pgr`, `rede_vicosa_mp` e `rede_vicosa_mp_vertices` estão localizados na pasta `DADOS_FINAIS`.**
   
-
 #### 12.2. CÁLCULO DA CONECTIVIDADE E ACESSIBILIDADE DA REDE VIÁRIA SEM O ANEL `(PYTHON)`
 
+Com o arquivo `rede_vicosa_mp` é possível calcular a conectividade da malha viária e sua acessibilidade através do custo entre vértices com função `pgr_dijkstra`. Será calculado a matriz de curso para percorrer todos os nós centrais entre si e esses valores correspondem ao custo de percorrer todos arcos entre si e as acessibilidades são resultados dessa matriz.
+
+Primeiramente é necessario instalar o pacote `pandas` para manipular dataframes dentro do Python. O comando para instalar tal pacote deve ser executado no `promp de comando`:
+
+    pip install pandas
+    
+ Os códigos no Jupyter Notebook são os seguintes:
+ 
+ #### 12.2.1. IMPORTANDO O PACOTE psycopg2 QUE CONECTA O PYTHON COM O POSTGRE-SQL E O PACOTE pandas PARA ORGANIZAR AS TABELAS DE ACESSIBILIDADE
+ 
+     import psycopg2 as pg
+    import pandas as pd
+    
+#### 12.2.2. CONECTANDO AO BANCO DE DADOS
+
+    con = pg.connect(host='localhost', 
+                    database='dissertacao',
+                    user='postgres', 
+                    password='admin')
+
+    cur = con.cursor() #CRIANDO UMA INSTÂNCIA PARA EXECUTAR COMANDOS EM SQL
+
+    # OBS: O servidor hospedado na máquina local será conectado no banco de dados nomeado rede_exemplo, que possui usuário postgres e senha admin.
+
+#### 12.2.3. VENDO QUANTOS GRAFOS A MALHA POSSUI
+
+    tabela_grafos = 'rede_vicosa' #TABELA COM A REDE
+    sql = f'select max(id) from {tabela_grafos}' #COMANDO EM SQL A SER EXECUTADO
+    cur.execute(sql) #EXECUTANDO O COMANDO CRIADO
+    dados_consultados = cur.fetchall() #RETORNANDO OS DADOS
+    id_max = e = dados_consultados[0][0] #ID MÁXIMO DA MALHA
+    
+#### 12.2.4. VENDO QUANTOS VÉRTICES A MALHA POSSUI
+
+    tabela_vertices = 'rede_vicosa_vertices_pgr' #TABELA COM A REDE
+    sql = f'select max(id) from {tabela_vertices}' #COMANDO EM SQL A SER EXECUTADO
+    cur.execute(sql) #EXECUTANDO O COMANDO CRIADO
+    dados_consultados = cur.fetchall() #RETORNANDO OS DADOS
+    v = dados_consultados[0][0] #ID MÁXIMO DA MALHA
+    
+    
+#### 12.2.5. CONECTIVIDADE DA MALHA
+
+    #INDICE ALFA: NÚMERO DE CLICOS DA REDE 'u'
+    #FORMULA:    u = e-v+1
+    #            u_max = 2v-5
+    #            alfa = u/u_max ou (e-v+1) / (2v-5)
+    #            sendo e: numero de linhas; v: numero de vértices
+
+    #INDICE BETA: SIMPLES RELAÇÃO ENTRE NUMERO DE LINHAS E VÉRTICES
+    #FORMULA:    beta = e / v
+
+    #INDICE GAMA: RELAÇÃO NUMERO DE LINHAS OBSERVADAS E O NUMERO MÁXIMO DE LINHAS
+    #FORMULA:    gama = e / (3(v-2))
+
+    alfa = (e-v+1)/(2*v-5)
+    beta = e/v
+    gama = e/(3*(v-2))
+
+    print(f'No cálculo de conectividade da rede, obtemos os seguintes resultados:\nÍndice Alfa: {alfa:.3f}\nÍndice Beta: {beta:.3f}\nÍndice Gama: {gama:.3f}')
+
+#### 12.2.6. NOME DAS TABELAS
+
+    #NOME DAS TABELAS E DOS ATRIBUTOS DA CONSULTA:
+    tabela_grafos_acess = 'rede_vicosa_mp' #NOME DE TABELA DA REDE
+    abr_grafos = 'rvmp' #ABREVIAÇÃO PARA A TABELA DA REDE
+    lista_custos = []
+    
+#### 12.2.7. LIGAÇÕES ENTRE OS GRAFOS
+
+    for id_i in range(1001, id_max + 1001): #ITERAÇÃO QUE IRÁ PERCORRER TODOS OS GRAFOS COMO VÉRTICE INICIAL
+
+        lista_custos_i = [] #CRIANDO UMA LISTA VAZIA PARA RECEBER OS CUSTOS DO GRAFO i
+
+        for id_j in range(1001, id_max + 1001): #ITERAÇÃO QUE IRÁ PERCORRER TODOS OS GRAFOS COMO VÉRTICE FINAL
+
+            if id_i == id_j: #SE A ITERAÇÃO CALCULAR A DISTANCIA DE UM GRAFO PARA ELE MESMO, PULA A ITERAÇÃO E ADICIONA CUSTO ZERO NA LISTA
+                lista_custos_i.append(0)
+                continue
+
+            else:
+
+                sql = f"SELECT sum(djk.cost)/2 as tot_cost FROM pgr_dijkstra('SELECT id, source, target, cost, reverse_cost from {tabela_grafos_acess}', {id_i}, {id_j}, true) as djk JOIN {tabela_grafos_acess} {abr_grafos} ON djk.edge = {abr_grafos}.id;" #COMANDO EM SQL A SER EXECUTADO. SERÁ SELECIONADO O VÉRTICE INICIAL E FINAL DO GRAFO DO OBJETIVO FINAL.
+
+                cur.execute(sql) #EXECUTANDO O COMANDO
+
+                dados_consultados = cur.fetchall() #RETORNANDO OS DADOS            
+
+                cost = int(dados_consultados[0][0]) #CUSTO ENTRE i E j
+
+                #ADICIONANDO OS DADOS EM UMA LISTA:
+                lista_custos_i.append(cost) #ADICIONANDO O CUSTO DE ATRAVESSAR DO GRAFO i ATÉ O GRAFO j EM UMA LISTA PROVISÓRIA
+
+        lista_custos.append(lista_custos_i) #ADICIONANDO A TABELA PROVISIÓRIA ACIMA EM UMA LISTA QUE TERÁ TODAS INFORMAÇÕES
+
+#### 12.2.8. TRANSFORMANDO A LISTA EM TABELA COM O PANDAS
+
+    #CRIANDO UMA MATRIZ A PARTIR DA LISTA ACIMA:
+    matrizCustos = pd.DataFrame(lista_custos)
+
+    #SUBSTITUINDO O CABEÇALHO E LINHAS QUE ESTÁ INDO DE 0 ATÉ 7 PARA OS NOMES DOS GRAFOS QUE VAI DE A ATÉ H:
+    matrizCustos_ren = matrizCustos #CRIANDO UMA COPIA DA MATRIZ ANTIGA, PARA PRESERVAR A ESTRUTURA ORIGINAL
+
+    for i in range(0, len(matrizCustos)+1): #ITERAÇÃO PARA SUBSTITUIR O NOME DO CABEÇALHO E DAS LINHAS
+        matrizCustos_ren = matrizCustos_ren.rename(columns={i: f'{i+1}'}, index = {i: f'{i+1}'})
+        
+    matrizCustos
+    
+#### 12.2.9. Matriz dos custos de grafo a grafo
+
+    matrizCustos_ren
+    
+#### 12.2.10. Acessibilidade pelo Método 1:
+
+    matrizAcess_conectiv = matrizCustos_ren.filter(items=list(map(lambda x: f'{x}', range(1, id_max + 1))))\
+                                            .where(matrizCustos_ren.values == 1) #SELECIONANDO APENAS OS GRAFOS QUE POSSUEM LIGAÇÕES DIRETAS
+
+    matrizAcess_conectiv = matrizAcess_conectiv.apply(lambda x: x.replace(float('NaN'), 0)) #ATRIBUINDO VALOR ZERO PARA OS GRAFOS SEM LIGAÇÕES DIRETAS
+    
+    matrizAcess_conectiv #MATRIZ DE CONECTIVADE
+    
+    Acess_1 = matrizAcess_conectiv.sum(axis=1) #SOMA DAS LINHAS DA MATRIZ DE CONECTIVIDADE
+    Acess_1 = pd.DataFrame(Acess_1).rename(columns = {0: 'SOMATÓRIO'}) #CRIANDO UM DATA FRAME PARA RECEBER OS DADOS
+    
+    Acess_1
+    
+#### 12.2.11.  Acessibilidade pelo Método 2:
+
+    Acess_2 = matrizCustos_ren.max() #VALORES MÁXIMOS PARA CADA GRAFO ATÉ O GRAFO MAIS DISTANTE NA REDE (NÚMERO ASSOCIADO)
+    Acess_2 = pd.DataFrame(Acess_2).rename(columns = {0: 'SOMATÓRIO'}) #NÚMERO ASSOCIADO
+    
+    Acess_2
+    
+#### 12.2.12. Acessibilidade pelo Método 3:
+
+    # A ORDEM DE LIGAÇÃO MÁXIMA PODE SER OBTIDADE DA TABELA DO CÁLCULO DO NÚMERO ASSOCIADO, SENDO O VALOR MÁXIMO OBTIDO NO CALCULO DE ACESSIBILIDADE DO MÉTODO 2
+    lig_max = int(Acess_2.max())
+
+    lista_acess_3 = [] #CRIANDO UMA LISTA QUE RECEBERÁ O SOMATÓRIO DA ACESSIBILIDADE PARA CADA ORDEM
+
+    for i in range(1, lig_max + 1): #ITERAÇÃO QUE IRÁ PERCORRER DA ORDEM 1 ATÉ A ORDEM MÁXIMA
+
+        matrizAcess_ordem_i = matrizCustos_ren.filter(items=list(map(lambda x: f'{x}', range(1, id_max + 1))))\
+                                                .where(matrizCustos_ren.values == i) #SELECIONANDO APENAS OS GRAFOS QUE POSSUEM LIGAÇÕES DE ORDEM i
+
+        matrizAcess_ordem_i = matrizAcess_ordem_i.apply(lambda x: x.replace(float('NaN'), 0)) #DEFININDO OS VALORES 'NaN' IGUAL A ZERO
+
+        sumMatrizAcess_ordem_i = matrizAcess_ordem_i.sum(axis=1) #SOMANDO AS LINHAS
+
+        lista_acess_3.append(list(sumMatrizAcess_ordem_i)) #ADICIONANDO O SOMATÓRIO A LISTA DE ACESSIBILIDADE 3
+
+    Acess_3 = pd.DataFrame(pd.DataFrame(lista_acess_3).sum()) #DEFININDO ACESSIBILIDADE PELO MÉTODO TRÊS COMO O SOMATÓRIO DE TODAS ACESSIBILIDADES DE ORDEM N
+
+    #RENOMEANDO AS LINHAS E COLUNAS DESSA MATRIZ:
 
 
+    Acess_3 = Acess_3.rename(columns = {0: 'SOMATÓRIO'}) #DEFININDO O NOME DA COLUNA
+
+    for i in range(0, len(Acess_3)): #ITERAÇÃO PARA SUBSTITUIR DAS LINHAS
+        Acess_3 = Acess_3.rename(index = {i: f'{i+1}'})
+    
+#### 12.2.13. RESULTADOS:
+
+#### 12.2.13.1. Acessibilidade Método 1:
+
+    Acess_1
+
+#### 12.2.13.2. Acessibilidade Método 2:
+
+    Acess_2
+
+#### 12.2.13.3. Acessibilidade Método 3:
+
+    Acess_3
+
+#### 12.2.14. Adicionando as Acessibilidades na tabela rede_vicosa:
+
+    for id_i in range (1, id_max + 1):
+
+        sql = f"update {tabela_grafos} set acess_1 = '{Acess_1.values[id_i-1][0]}', acess_2 = '{Acess_2.values[id_i-1][0]}', acess_3 = '{Acess_3.values[id_i-1][0]}' where id = {id_i};" #COMANDO EM SQL A SER EXECUTADO. SERÁ ATRIBUITO A TABELA 'REDE_VICOSA' AS ACESSIBILIDADES DAS VIAS.
+
+        cur.execute(sql) #EXECUTANDO O COMANDO
+
+        con.commit() #FINALIZANDO A EXECUÇÃO DO COMANDO
+
+        print(f'Grafo id {id_i}: Acessibilidade 1: {Acess_1.values[id_i-1][0]}; Acessibilidade 2: {Acess_2.values[id_i-1][0]}; Acessibilidade 3: {Acess_3.values[id_i-1][0]};')
+
+    cur.close() #ENCERRANDO A INSTÂNCIA CRIADA PARA A EXECUÇÃO DO COMANDO
+
+    con.close() #ENCERRANDO A CONEXÃO COM BANCO DE DADOS
