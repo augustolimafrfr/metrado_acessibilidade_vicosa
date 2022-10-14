@@ -479,7 +479,7 @@ Os códigos utilizados são semelhantes.
     dados_consultados = cur.fetchall() #RETORNANDO OS DADOS
     id_max = dados_consultados[0][0] #ID MÁXIMO DA MALHA
 
-#### 11.1.4. ATRIBUINDO NOME DAS VIAS PARA O BANCO DE DADOS DOS GRAFOS
+#### 11.1.4. PREENCHENDO A COLUNA ID_GRAFO_SEMANEL DA MALHA VIAS_GRAFOS_ANEL
 
     #NOME DAS TABELAS E DOS ATRIBUTOS DA CONSULTA:
     tabela_grafos_anel = 'vias_grafos_anel' #NOME DE TABELA QUE CONTÉM O SHP DOS GRAFOS DA MALHA COM O ANEL
@@ -513,7 +513,7 @@ Os códigos utilizados são semelhantes.
             print(f'ID grafo anel: {id_i} -> ID grafo sem anel: {dados_consultados[0][0]}\n')
 
 
-#### 11.1.5. ATRIBUINDO O TIPO DA VIA DE ACORDO COM O PLANO DE MOBILIDADE PARA O BANCO DE DADOS DOS GRAFOS
+#### 11.1.5. ATRIBUINDO NOME DAS VIAS PARA O BANCO DE DADOS DOS GRAFOS
 
     #NOME DAS TABELAS E DOS ATRIBUTOS DA CONSULTA:
     tabela_grafos = 'vias_grafos_anel' #NOME DE TABELA QUE CONTÉM O SHP DOS GRAFOS DA MALHA
@@ -1030,6 +1030,8 @@ Para completar as colunas source e target da tabela `rede_vicosa_mp` utilizou-se
 
     con.close() #ENCERRANDO A CONEXÃO COM O BANCO DE DADOS
     
+**Esse SCRIPT Python se encontra na pasta SCRIPTS_PYTHON > av_dissertacao > projetos > 1_ORGANIZAR_DADOS\VIÇOSA > VERTICES_REDE_VICOSA_SEM_ANEL.ipynb**
+
 #### 12.1.14. VERIFICANDO VÉRTICES INICIAIS E FINAIS DAS LINHAS COM SENTIDO UNIDIRECIONAL `(SQL)`
 
 Novamente é necessário verificar no `QGIS` se os campos source e target das linhas com sentido unidirecional estão corretos. Mas mesmas linhas com problemas descritas no `tópico 12.8` apresentarão problemas. São elas: id 1,2, 37,38, 51, 52, 63 e 64. Para corrigir utilizou-se o seguinte comando:
@@ -1118,7 +1120,7 @@ Novamente é necessário verificar no `QGIS` se os campos source e target das li
   Após esse processo a rede está pronta para o cálculo da acessibilidade.
   
   **Os arquivos com os códigos executados estão localizados em: **
-  **Códigos Python: SCRIPTS_DISSERTACAO > SCRIPTS_PYTHON > av_dissertacao > projetos > 1_ORGANIZAR_DADOS > VIÇOSA > ORGANIZAR_DADOS_DAS_VIAS _SEM_O_ANEL.ipynb**
+  
   **Códigos SQL: SCRIPTS_DISSERTACAO > SCRIPTS_SQL > pgRouting
   
   **Os arquivos `rede_vicosa`, `rede_vicosa_vertices_pgr`, `rede_vicosa_mp` e `rede_vicosa_mp_vertices` estão localizados na pasta `DADOS_FINAIS`.**
@@ -1321,4 +1323,460 @@ Primeiramente é necessario instalar o pacote `pandas` para manipular dataframes
 
 ** Os scripts acima se encontram na pasta SCRIPTS_DISSERTACAO > SCRIPTS_PYTHON > av_dissertacao > projetos > 2_ACESSIBILIDADE > VIÇOSA  > pgROUTING_RedeVicosa_SEM_ANEL.ipynb **
 
-#### 13. 
+### 13. CÁLCULO DA CONECTIVIDADE E ACESSIBILIDADE (REDE COM ANEL VIÁRIO)
+
+Todos os processos feitos para a malha viária com o anel proposto por Silva (2012) foram similares ao anterior. Segue os códigos a seguir:
+
+#### 13.1. PRÉ-PROCESSAMENTO
+#### 13.1.1. CRIAÇÃO DA REDE A SER ANALISADA `(SQL)`
+
+    -- CRIANDO UMA NOVA TABELA SIMILAR AO 'vias_grafos' CHAMADA 'rede_vicosa':
+    SELECT * INTO rede_vicosa_anel FROM vias_grafos_anel ORDER BY id;
+
+#### 13.1.2. CRIAÇÃO DE NOVAS COLUNAS PARA A TABELA `(SQL)`
+
+    -- CRIANDO OS CAMPOS PARA OS VÉRTICES DE FIM E INICIO DO GRAFO:
+    ALTER TABLE rede_vicosa_anel
+    ADD source INT4,
+    ADD target INT4,
+    ADD cost REAL,
+    ADD reverse_cost REAL;
+
+#### 13.1.3. RENOMEANDO O CAMPO 'geom' PARA 'the_geom' `(SQL)`
+
+    -- RENOMEANDO O CAMPO 'geom' PARA 'the_geom':
+    ALTER TABLE rede_vicosa_anel
+    RENAME COLUMN geom TO the_geom;
+
+#### 13.1.4. REDEFININDO OS DADOS DE DIREÇÃO DA VIA PARA 'YES' OU 'NO' `(SQL)`
+
+    -- VIAS COM MÃO ÚNICA:
+    UPDATE rede_vicosa_anel SET oneway = 'YES' WHERE oneway = 'TF';
+
+    -- VIAS COM MÃO DUPLA:
+    UPDATE rede_vicosa_anel SET oneway = 'NO' WHERE oneway = 'B';
+
+#### 13.1.5. DEFININDO OS CUSTOS DOS ARCOS `(SQL)`
+
+    -- DEFININDO CUSTOS 1 PARA TODOS OS VÉRTICES:
+    UPDATE rede_vicosa_anel SET cost = 1, reverse_cost = 1;
+
+    -- DEFININDO O CUSTO REVERSOS = -1 PARA OS GRAFOS COM DIREÇÃO ÚNICA:
+    UPDATE rede_vicosa_anel SET reverse_cost = '-1' WHERE oneway = 'YES';
+
+#### 13.1.6. CRIANDO A TOPOLOGIA DA REDE `(SQL)`
+
+    -- CRIANDO A TOPOLOGIA DA REDE:
+    SELECT pgr_createTopology('rede_vicosa_anel', 1);
+
+#### 13.1.7. CRIANDO VÉRTICES NO MEIO DAS LINHAS `(SQL)`
+
+    -- CRIANDO OS VÉRTICES NO MEIO DE CADA GRAFO:
+    CREATE TABLE mid_points_anel AS
+    SELECT id, ST_LineInterpolatePoint(ST_LineMerge(the_geom), 0.5) as geom
+    FROM rede_vicosa_anel;
+
+    ALTER TABLE mid_points_anel
+    ADD CONSTRAINT mid_points_anel_pk PRIMARY KEY (id);
+
+    CREATE INDEX sidx_mid_points_anel
+     ON mid_points_anel
+     USING GIST (geom);
+
+#### 13.1.8. VERIFICAR SE AS COLUNAS SOURCE E TARGET ESTÃO CORRETAS `(SQL)`
+
+    -- id do grafo: 98 (id grafo sem anel: 1)
+    UPDATE rede_vicosa_anel
+    SET source = '8', target = '24'
+    WHERE id = 98;
+
+    -- id do grafo: 74 (id grafo sem anel: 62)
+    UPDATE rede_vicosa_anel
+    SET source = '89', target = '34'
+    WHERE id = 74;
+
+    -- id do grafo: 49 (id grafo sem anel: 71)
+    UPDATE rede_vicosa_anel
+    SET source = '87', target = '86'
+    WHERE id = 49;
+
+    -- id do grafo: 64 (id grafo sem anel: 96)
+    UPDATE rede_vicosa_anel
+    SET source = '73', target ='69'
+    WHERE id = 64;
+
+#### 13.1.9. CRIANDO A REDE COM PONTOS INTERMEDIÁRIOS ATRAVÉS DO QGIS
+
+Etapa realizada de forma semelhante a malha sem anel viário.
+
+#### 13.1.10. REMOVENTO ELEMENTOS INUTEIS DA rede_vicosa_anel_mp_prov `(SQL)`
+
+    -- REMOVENDO DA CAMADA rede_vicosa_anel_mp AQUELAS GEOMETRIAS NÃO UTEIS PARA A ATUAL ANÁLISE
+
+    CREATE TABLE rede_vicosa_anel_mp AS
+    SELECT rvmpp.id, rvmpp.comp_via, rvmpp.nome_rua, rvmpp.tipo_pm, rvmpp.largura_me, rvmpp.pavimento, rvmpp.oneway, rvmpp.decliv_me, rvmpp.id_grafo_s, rvmpp.source, rvmpp.target, rvmpp.cost, rvmpp.reverse_co, ST_Difference(rvmpp.geom, ptos.geom) as geom 
+    FROM (SELECT rvmpp.*
+    FROM rede_vicosa_anel_mp_prov rvmpp, mid_points_anel mp
+    WHERE ST_Contains(mp.geom, rvmpp.geom)) as ptos, rede_vicosa_anel_mp_prov rvmpp
+    WHERE ST_Intersects(rvmpp.geom, ptos.geom);
+
+    DELETE FROM rede_vicosa_anel_mp
+    WHERE ST_LENGTH(geom) = 0;
+
+    ALTER TABLE rede_vicosa_anel_mp
+    ADD COLUMN id0 SERIAL PRIMARY KEY;
+
+    --DELETANDO A TABELA rede_vicosa_anel_mp_prov, JÁ QUE A DEFINITIVA FOI CRIADA
+    DROP TABLE rede_vicosa_anel_mp_prov;
+
+    -- ALTERANDO A TABELA REDE_VICOSA_anel_MP:
+    ALTER TABLE rede_vicosa_anel_mp
+    RENAME COLUMN id TO id_grafo;
+
+#### 13.1.11. RENOMEANDO O id DA TABELA mid_points_anel `(SQL)`
+
+    --ALTERANDO A TABELA 'mid_points_anel' PARA INCLUIR UMA COLUNA CHAMADA ID_GRAFO E ALTERAR O ID PARA 1000 + id DO GRAFO.
+    ALTER TABLE mid_points_anel
+    ADD id_grafo INT4;
+
+    UPDATE mid_points_anel
+    SET id_grafo = id;
+
+    UPDATE mid_points_anel
+    SET id = 1000 + id;
+
+
+#### 13.1.12. CRIANDO A TABELA rede_vicosa_anel_mp_vertices COM TODOS OS VÉRTICES DA rede_vicosa_anel_mp (VÉRTICES DE INÍCIO E FIM DA rede_vicosa_anel E VÉRTICES DA TABELA mid_points_anel `(SQL)`
+
+    -CRIANDO A TABELA rede_vicosa_anel_mp_vertices QUE POSSUIRÁ TODOS OS VERTICES DA REDE PARA CALCULO DE ACESSIBILIDADE:
+    SELECT *
+    INTO rede_vicosa_anel_mp_vertices
+    FROM mid_points_anel;
+
+    ALTER TABLE rede_vicosa_anel_mp_vertices
+    ADD CONSTRAINT rede_vicosa_anel_mp_vertices_pk PRIMARY KEY (id);
+
+    INSERT INTO rede_vicosa_anel_mp_vertices (id, geom)
+    (SELECT id, the_geom as geom FROM rede_vicosa_anel_vertices_pgr);
+
+    SELECT * FROM rede_vicosa_anel_mp_vertices;
+
+#### 13.1.13. COMPLETANDO A TABELA rede_vicosa_anel_mp COM OS VÉRTICES INICIAIS E FINAIS DE CADA LINHA `(PYTHON)`
+
+Os processo a seguir são feitos em ligaguem python
+
+#### 13.1.13.1. IMPORTANDO O PACOTE psycopg2 QUE CONECTA O PYTHON COM O POSTGRE-SQL E O PACOTE pandas PARA ORGANIZAR AS TABELAS DE ACESSIBILIDADE `(PYTHON)`
+
+    import psycopg2 as pg
+
+#### 13.1.13.2. CONECTANDO AO BANCO DE DADOS `(PYTHON)`
+
+    con = pg.connect(host='localhost', 
+                    database='dissertacao',
+                    user='postgres', 
+                    password='admin')
+
+    cur = con.cursor() #CRIANDO UMA INSTÂNCIA PARA EXECUTAR COMANDOS EM SQL
+
+    # OBS: O servidor hospedado na máquina local será conectado no banco de dados nomeado rede_exemplo, que possui usuário postgres e senha admin.
+
+#### 13.1.13.3. VENDO QUANTOS GRAFOS A NOVA MALHA POSSUI `(PYTHON)`
+
+    tabela_grafos = 'rede_vicosa_anel_mp' #TABELA COM A REDE
+    tabela_vertices = 'rede_vicosa_anel_mp_vertices'
+    sql = f'select max(id0) from {tabela_grafos}' #COMANDO EM SQL A SER EXECUTADO
+    cur.execute(sql) #EXECUTANDO O COMANDO CRIADO
+    dados_consultados = cur.fetchall() #RETORNANDO OS DADOS
+    id_max = dados_consultados[0][0] #ID MÁXIMO DA MALHA
+
+#### 13.1.13.4. DEFININDO OS VÉRTICES DE INICIO E FIM `(PYTHON)`
+
+        for id_i in range (1, id_max + 1):
+        #CONSULTANDO O VÉRTICE INICIAL DO GRAFO i:
+
+        sql = f'SELECT rvmp.id, rvmp.geom FROM (SELECT ST_LineInterpolatePoints(ST_LineMerge(geom), 0) as geom FROM {tabela_grafos} WHERE id0 = {id_i}) as pto, {tabela_vertices} rvmp WHERE ST_Intersects(pto.geom, rvmp.geom)' #COMANDO EM SQL A SER EXECUTADO. SERÁ SELECIONADO O VÉRTICE INICIAL DO GRAFO i
+
+        dados_consultados = cur.fetchall() #RETORNANDO OS DADOS
+
+        id_ini = dados_consultados[0][0]
+
+        #CONSULTANDO O VÉRTICE FINAL DO GRAFO i
+
+        sql = f'SELECT rvmp.id FROM (SELECT ST_LineInterpolatePoints(ST_LineMerge(geom), 1) as geom FROM {tabela_grafos} WHERE id0 = {id_i}) as pto, {tabela_vertices} rvmp WHERE ST_Intersects(pto.geom, rvmp.geom)' #COMANDO EM SQL A SER EXECUTADO. SERÁ SELECIONADO O VÉRTICE FINAL DO GRAFO i
+
+        cur.execute(sql) #EXECUTANDO O COMANDO
+
+        dados_consultados = cur.fetchall() #RETORNANDO OS DADOS
+
+        id_fim = dados_consultados[0][0]
+
+        #ATUALIZANDO A TABELA DOS GRAFOS DA REDE:
+
+        sql = f"update {tabela_grafos} set source ='{id_ini}', target = '{id_fim}' where id0 = {id_i};" #COMANDO EM SQL A SER EXECUTADO. SERÁ ATRIBUITO A TABELA DOS GRAFOS A SOURCE E TARGET ENCONTRADA.
+
+        cur.execute(sql) #EXECUTANDO O COMANDO
+
+        con.commit() #FINALIZANDO A EXECUÇÃO DO COMANDO
+
+        print(f'ID: {id_i} -> v_ini = {id_ini} e v_fim = {id_fim}')
+
+    cur.close() #ENCERRANDO A INSTÂNCIA CRIADA PARA A EXECUÇÃO DO COMANDO
+
+    con.close() #ENCERRANDO A CONEXÃO COM O BANCO DE DADOS
+
+**Esse Script se encontra na pasta SCRIPTS_PYTHON > av_dissertacao > projetos > 1_ORGANIZAR_DADOS > VIÇOSA > VERTICES_REDE_VICOSA_COM_ANEL.ipynb
+
+#### 13.1.14. VERIFICANDO VÉRTICES INICIAIS E FINAIS DAS LINHAS COM SENTIDO UNIDIRECIONAL `(SQL)`
+
+       -- id do grafo: 224, 223 (id grafo sem anel: 1)
+    UPDATE rede_vicosa_anel_mp
+    SET source = '8', target ='1098'
+    WHERE id0 = 224;
+
+    UPDATE rede_vicosa_anel_mp
+    SET source = '1098', target = '24'
+    WHERE id0 = 223;
+
+    -- id do grafo: 221, 222 (id grafo sem anel: 62)
+    UPDATE rede_vicosa_anel_mp
+    SET source = '1074', target ='34'
+    WHERE id0 = 221;
+
+    UPDATE rede_vicosa_anel_mp
+    SET source = '89', target = '1074'
+    WHERE id0 = 222;
+
+    -- id do grafo: 207, 208 (id grafo sem anel: 71)
+    UPDATE rede_vicosa_anel_mp
+    SET source = '1049', target = '86'
+    WHERE id0 = 207;
+
+    UPDATE rede_vicosa_anel_mp
+    SET source = '87', target = '1049'
+    WHERE id0 = 208;
+
+    -- id do grafo: 213, 214 (id grafo sem anel: 96)
+    UPDATE rede_vicosa_anel_mp
+    SET source = '1064', target = '69'
+    WHERE id0 = 213;
+
+    UPDATE rede_vicosa_anel_mp
+    SET source = '73', target = '1064'
+    WHERE id0 = 214;
+
+#### 13.1.15. RENOEMANDO ALGUMAS COLUNAS DA REDE E RECRIANDO A TOPOLOGIA DA REDE:
+
+    -- RENOEMANDO ALGUMAS COLUNAS DA REDE E RECRIANDO A TOPOLOGIA DA REDE:
+    ALTER TABLE rede_vicosa_anel_mp
+    RENAME COLUMN geom TO the_geom;
+
+    ALTER TABLE rede_vicosa_anel_mp
+    RENAME COLUMN id0 TO id;
+
+    ALTER TABLE rede_vicosa_anel_mp
+    RENAME COLUMN reverse_co to reverse_cost;
+
+    ALTER TABLE rede_vicosa_anel_mp
+    RENAME COLUMN id_grafo_s to id_grafo_semanel;
+
+    SELECT pgr_createTopology('rede_vicosa_anel_mp', 1);
+    
+#### 13.2. CÁLCULO DA CONECTIVIDADE E ACESSIBILIDADE DA REDE VIÁRIA SEM O ANEL `(PYTHON)`
+
+#### 13.2.1. IMPORTANDO O PACOTE psycopg2 QUE CONECTA O PYTHON COM O POSTGRE-SQL E O PACOTE pandas PARA ORGANIZAR AS TABELAS DE ACESSIBILIDADE
+
+    import psycopg2 as pg
+    import pandas as pd
+
+#### 13.2.2. CONECTANDO AO BANCO DE DADOS
+
+    con = pg.connect(host='localhost', 
+                    database='dissertacao',
+                    user='postgres', 
+                    password='admin')
+
+    cur = con.cursor() #CRIANDO UMA INSTÂNCIA PARA EXECUTAR COMANDOS EM SQL
+
+    # OBS: O servidor hospedado na máquina local será conectado no banco de dados nomeado rede_exemplo, que possui usuário postgres e senha admin.
+
+#### 13.2.3. VENDO QUANTOS GRAFOS A MALHA POSSUI
+
+    tabela_grafos = 'rede_vicosa_anel' #TABELA COM A REDE
+    sql = f'select max(id) from {tabela_grafos}' #COMANDO EM SQL A SER EXECUTADO
+    cur.execute(sql) #EXECUTANDO O COMANDO CRIADO
+    dados_consultados = cur.fetchall() #RETORNANDO OS DADOS
+    id_max = e = dados_consultados[0][0] #ID MÁXIMO DA MALHA
+
+#### 13.2.4. VENDO QUANTOS VÉRTICES A MALHA POSSUI
+
+    tabela_vertices = 'rede_vicosa_anel_vertices_pgr' #TABELA COM A REDE
+    sql = f'select max(id) from {tabela_vertices}' #COMANDO EM SQL A SER EXECUTADO
+    cur.execute(sql) #EXECUTANDO O COMANDO CRIADO
+    dados_consultados = cur.fetchall() #RETORNANDO OS DADOS
+    v = dados_consultados[0][0] #ID MÁXIMO DA MALHA
+
+#### 13.2.5. CONECTIVIDADE DA MALHA
+ 
+     #INDICE ALFA: NÚMERO DE CLICOS DA REDE 'u'
+    #FORMULA:    u = e-v+1
+    #            u_max = 2v-5
+    #            alfa = u/u_max ou (e-v+1) / (2v-5)
+    #            sendo e: numero de linhas; v: numero de vértices
+
+    #INDICE BETA: SIMPLES RELAÇÃO ENTRE NUMERO DE LINHAS E VÉRTICES
+    #FORMULA:    beta = e / v
+
+    #INDICE GAMA: RELAÇÃO NUMERO DE LINHAS OBSERVADAS E O NUMERO MÁXIMO DE LINHAS
+    #FORMULA:    gama = e / (3(v-2))
+
+    alfa = (e-v+1)/(2*v-5)
+    beta = e/v
+    gama = e/(3*(v-2))
+
+    print(f'No cálculo de conectividade da rede, obtemos os seguintes resultados:\nÍndice Alfa: {alfa:.3f}\nÍndice Beta: {beta:.3f}\nÍndice Gama: {gama:.3f}')
+ 
+#### 13.2.6. NOME DAS TABELAS
+
+    #NOME DAS TABELAS E DOS ATRIBUTOS DA CONSULTA:
+    tabela_grafos_acess = 'rede_vicosa_anel_mp' #NOME DE TABELA DA REDE
+    abr_grafos = 'rvmp' #ABREVIAÇÃO PARA A TABELA DA REDE
+    lista_custos = []
+
+#### 13.2.7. LIGAÇÕES ENTRE OS GRAFOS
+ 
+     for id_i in range(1001, id_max + 1001): #ITERAÇÃO QUE IRÁ PERCORRER TODOS OS GRAFOS COMO VÉRTICE INICIAL
+
+        lista_custos_i = [] #CRIANDO UMA LISTA VAZIA PARA RECEBER OS CUSTOS DO GRAFO i
+
+        for id_j in range(1001, id_max + 1001): #ITERAÇÃO QUE IRÁ PERCORRER TODOS OS GRAFOS COMO VÉRTICE FINAL
+
+            if id_i == id_j: #SE A ITERAÇÃO CALCULAR A DISTANCIA DE UM GRAFO PARA ELE MESMO, PULA A ITERAÇÃO E ADICIONA CUSTO ZERO NA LISTA
+                lista_custos_i.append(0)
+                continue
+
+            else:
+
+                sql = f"SELECT sum(djk.cost)/2 as tot_cost FROM pgr_dijkstra('SELECT id, source, target, cost, reverse_cost from {tabela_grafos_acess}', {id_i}, {id_j}, true) as djk JOIN {tabela_grafos_acess} {abr_grafos} ON djk.edge = {abr_grafos}.id;" #COMANDO EM SQL A SER EXECUTADO. SERÁ SELECIONADO O VÉRTICE INICIAL E FINAL DO GRAFO DO OBJETIVO FINAL.
+
+                cur.execute(sql) #EXECUTANDO O COMANDO
+
+                dados_consultados = cur.fetchall() #RETORNANDO OS DADOS            
+
+                cost = int(dados_consultados[0][0]) #CUSTO ENTRE i E j           
+
+                #ADICIONANDO OS DADOS EM UMA LISTA:
+                lista_custos_i.append(cost) #ADICIONANDO O CUSTO DE ATRAVESSAR DO GRAFO i ATÉ O GRAFO j EM UMA LISTA PROVISÓRIA
+
+        lista_custos.append(lista_custos_i) #ADICIONANDO A TABELA PROVISIÓRIA ACIMA EM UMA LISTA QUE TERÁ TODAS INFORMAÇÕES
+
+ 
+#### 13.2.8. TRANSFORMANDO A LISTA EM TABELA COM O PANDAS
+
+    #CRIANDO UMA MATRIZ A PARTIR DA LISTA ACIMA:
+    matrizCustos = pd.DataFrame(lista_custos)
+
+    #SUBSTITUINDO O CABEÇALHO E LINHAS QUE ESTÁ INDO DE 0 ATÉ 7 PARA OS NOMES DOS GRAFOS QUE VAI DE A ATÉ H:
+    matrizCustos_ren = matrizCustos #CRIANDO UMA COPIA DA MATRIZ ANTIGA, PARA PRESERVAR A ESTRUTURA ORIGINAL
+
+    for i in range(0, len(matrizCustos)+1): #ITERAÇÃO PARA SUBSTITUIR O NOME DO CABEÇALHO E DAS LINHAS
+        matrizCustos_ren = matrizCustos_ren.rename(columns={i: f'{i+1}'}, index = {i: f'{i+1}'})
+    
+    matrizCustos
+
+#### 13.2.9. Matriz dos custos de grafo a grafo
+ 
+    matrizCustos_ren
+ 
+#### 13.2.10. Acessibilidade pelo Método 1:
+
+    matrizAcess_conectiv = matrizCustos_ren.filter(items=list(map(lambda x: f'{x}', range(1, id_max + 1))))\
+                                            .where(matrizCustos_ren.values == 1) #SELECIONANDO APENAS OS GRAFOS QUE POSSUEM LIGAÇÕES DIRETAS
+
+    matrizAcess_conectiv = matrizAcess_conectiv.apply(lambda x: x.replace(float('NaN'), 0)) #ATRIBUINDO VALOR ZERO PARA OS GRAFOS SEM LIGAÇÕES DIRETAS
+    
+    matrizAcess_conectiv #MATRIZ DE CONECTIVADE
+    
+#### 13.2.11. Acessibilidade pelo Método 2:
+
+    Acess_1 = matrizAcess_conectiv.sum(axis=1) #SOMA DAS LINHAS DA MATRIZ DE CONECTIVIDADE
+    Acess_1 = pd.DataFrame(Acess_1).rename(columns = {0: 'SOMATÓRIO'}) #CRIANDO UM DATA FRAME PARA RECEBER OS DADOS
+
+    Acess_1
+    
+#### 13.2.12. Acessibilidade pelo Método 3:
+
+    Acess_2 = matrizCustos_ren.max() #VALORES MÁXIMOS PARA CADA GRAFO ATÉ O GRAFO MAIS DISTANTE NA REDE (NÚMERO ASSOCIADO)
+    Acess_2 = pd.DataFrame(Acess_2).rename(columns = {0: 'SOMATÓRIO'}) #NÚMERO ASSOCIADO
+
+    Acess_2
+
+#### 13.2.13. RESULTADOS:
+
+    # A ORDEM DE LIGAÇÃO MÁXIMA PODE SER OBTIDADE DA TABELA DO CÁLCULO DO NÚMERO ASSOCIADO, SENDO O VALOR MÁXIMO OBTIDO NO CALCULO DE ACESSIBILIDADE DO MÉTODO 2
+    lig_max = int(Acess_2.max())
+
+    lista_acess_3 = [] #CRIANDO UMA LISTA QUE RECEBERÁ O SOMATÓRIO DA ACESSIBILIDADE PARA CADA ORDEM
+
+    for i in range(1, lig_max + 1): #ITERAÇÃO QUE IRÁ PERCORRER DA ORDEM 1 ATÉ A ORDEM MÁXIMA
+
+        matrizAcess_ordem_i = matrizCustos_ren.filter(items=list(map(lambda x: f'{x}', range(1, id_max + 1))))\
+                                                .where(matrizCustos_ren.values == i) #SELECIONANDO APENAS OS GRAFOS QUE POSSUEM LIGAÇÕES DE ORDEM i
+
+        matrizAcess_ordem_i = matrizAcess_ordem_i.apply(lambda x: x.replace(float('NaN'), 0)) #DEFININDO OS VALORES 'NaN' IGUAL A ZERO
+
+        sumMatrizAcess_ordem_i = matrizAcess_ordem_i.sum(axis=1) #SOMANDO AS LINHAS
+
+        lista_acess_3.append(list(sumMatrizAcess_ordem_i)) #ADICIONANDO O SOMATÓRIO A LISTA DE ACESSIBILIDADE 3
+
+    Acess_3 = pd.DataFrame(pd.DataFrame(lista_acess_3).sum()) #DEFININDO ACESSIBILIDADE PELO MÉTODO TRÊS COMO O SOMATÓRIO DE TODAS ACESSIBILIDADES DE ORDEM N
+
+    #RENOMEANDO AS LINHAS E COLUNAS DESSA MATRIZ:
+
+
+    Acess_3 = Acess_3.rename(columns = {0: 'SOMATÓRIO'}) #DEFININDO O NOME DA COLUNA
+
+    for i in range(0, len(Acess_3)): #ITERAÇÃO PARA SUBSTITUIR DAS LINHAS
+        Acess_3 = Acess_3.rename(index = {i: f'{i+1}'})
+
+
+#### 13.2.13.1. Acessibilidade Método 1:
+
+    Acess_1
+
+#### 13.2.13.2. Acessibilidade Método 2:
+
+    Acess_2
+
+#### 13.2.13.3. Acessibilidade Método 3:
+
+    Acess_3
+
+#### 13.2.14. Adicionando as Acessibilidades na tabela rede_vicosa:
+
+    for id_i in range (1, id_max + 1):
+
+        sql = f"update {tabela_grafos} set acess_1 = '{Acess_1.values[id_i-1][0]}', acess_2 = '{Acess_2.values[id_i-1][0]}', acess_3 = '{Acess_3.values[id_i-1][0]}' where id = {id_i};" #COMANDO EM SQL A SER EXECUTADO. SERÁ ATRIBUITO A TABELA 'REDE_VICOSA' AS ACESSIBILIDADES DAS VIAS.
+
+        cur.execute(sql) #EXECUTANDO O COMANDO
+
+        con.commit() #FINALIZANDO A EXECUÇÃO DO COMANDO
+
+        print(f'Grafo id {id_i}: Acessibilidade 1: {Acess_1.values[id_i-1][0]}; Acessibilidade 2: {Acess_2.values[id_i-1][0]}; Acessibilidade 3: {Acess_3.values[id_i-1][0]};')
+
+    cur.close() #ENCERRANDO A INSTÂNCIA CRIADA PARA A EXECUÇÃO DO COMANDO
+
+    con.close() #ENCERRANDO A CONEXÃO COM BANCO DE DADOS
+    
+    
+**OBS. 1: Os scripts em SQL estão na pasta: SCRIPTS_DISSERTACAO > SCRIPTS_SQL > pgRouting_anel
+
+**OBS. 2: Os scripts em Python estão localizados na pasta: SCRIPTS_DISSERTACAO > SCRIPTS_PYTHON > av_dissertacao > projetos > 2_ACESSIBILIDADE > VIÇOSA > pgROUTING_RedeVicosa_COM_ANEL.ipynb
+
+**Os arquivos `rede_vicosa_anel`, `rede_vicosa_anel_vertices_pgr`, `rede_vicosa_anel_mp` e `rede_vicosa_anel_mp_vertices` estão localizados na pasta `DADOS_FINAIS`.**
+
+## APÓS ESSES PROCESSOS OS ARQUIVOS `rede_vicosa` E `rede_vicosa_anel` POSSUEM A ACESSIBILIDADE DE CADA LINHA EM SUA TABELA DE ATRIBUTOS, PRONTAS PARA SEREM ABERTAS NO QGIS.
+
+*CONTATO:*
+Augusto Franco de Lima
+e-mail pessoal: augustolimafrfr@gmail.com
+e-mail institucional: augusto.f.lima@ufv.br
