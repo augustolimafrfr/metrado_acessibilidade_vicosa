@@ -797,7 +797,7 @@ Os códigos utilizados são semelhantes.
 
 **O arquivo `vias_grafos_anel` preenchido se encontra na pasta `DADOS_FINAIS.`**
 
-### 12. CÁLCULO DA CONECTIVIDADE E ACESSIBILIDADE
+### 12. CÁLCULO DA CONECTIVIDADE E ACESSIBILIDADE (REDE SEM ANEL VIÁRIO)
 
 Essa parte foi dividida em duas etapas: pré-processamento e cálculos. Foi utilizados comandos em linguaguem `SQL` e linguaguem `Python` nessas etapas. Nos título dos tópicos terá informações de os comandos foram executados no pgAdmin (comando SQL) ou no Jupyter Notebook (comando Python).
 
@@ -1118,7 +1118,7 @@ Novamente é necessário verificar no `QGIS` se os campos source e target das li
   Após esse processo a rede está pronta para o cálculo da acessibilidade.
   
   **Os arquivos com os códigos executados estão localizados em: **
-  **Códigos Python: SCRIPTS_DISSERTACAO > SCRIPTS_PYTHON > av_dissertacao > projetos > 1_ORGANIZAR_DADOS > VIÇOSA**
+  **Códigos Python: SCRIPTS_DISSERTACAO > SCRIPTS_PYTHON > av_dissertacao > projetos > 1_ORGANIZAR_DADOS > VIÇOSA > ORGANIZAR_DADOS_DAS_VIAS _SEM_O_ANEL.ipynb**
   **Códigos SQL: SCRIPTS_DISSERTACAO > SCRIPTS_SQL > pgRouting
   
   **Os arquivos `rede_vicosa`, `rede_vicosa_vertices_pgr`, `rede_vicosa_mp` e `rede_vicosa_mp_vertices` estão localizados na pasta `DADOS_FINAIS`.**
@@ -1312,6 +1312,13 @@ Primeiramente é necessario instalar o pacote `pandas` para manipular dataframes
 
         print(f'Grafo id {id_i}: Acessibilidade 1: {Acess_1.values[id_i-1][0]}; Acessibilidade 2: {Acess_2.values[id_i-1][0]}; Acessibilidade 3: {Acess_3.values[id_i-1][0]};')
 
+
+#### 12.2.15. ENCERRANDO A CONEXAO COM O BANCO DE DADOS:
+
     cur.close() #ENCERRANDO A INSTÂNCIA CRIADA PARA A EXECUÇÃO DO COMANDO
 
     con.close() #ENCERRANDO A CONEXÃO COM BANCO DE DADOS
+
+** Os scripts acima se encontram na pasta SCRIPTS_DISSERTACAO > SCRIPTS_PYTHON > av_dissertacao > projetos > 2_ACESSIBILIDADE > VIÇOSA  > pgROUTING_RedeVicosa_SEM_ANEL.ipynb **
+
+#### 13. 
