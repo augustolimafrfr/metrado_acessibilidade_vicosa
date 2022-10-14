@@ -1777,6 +1777,9 @@ Os processo a seguir são feitos em ligaguem python
 ## APÓS ESSES PROCESSOS OS ARQUIVOS `rede_vicosa` E `rede_vicosa_anel` POSSUEM A ACESSIBILIDADE DE CADA LINHA EM SUA TABELA DE ATRIBUTOS, PRONTAS PARA SEREM ABERTAS NO QGIS.
 
 *CONTATO:*
+
 Augusto Franco de Lima
+
 e-mail pessoal: augustolimafrfr@gmail.com
+
 e-mail institucional: augusto.f.lima@ufv.br
