@@ -1768,7 +1768,7 @@ Os processo a seguir são feitos em ligaguem python
     con.close() #ENCERRANDO A CONEXÃO COM BANCO DE DADOS
     
     
-**OBS. 1: Os scripts em SQL estão na pasta: SCRIPTS_DISSERTACAO > SCRIPTS_SQL > pgRouting_anel
+**OBS. 1: Os scripts em SQL estão na pasta: SCRIPTS_DISSERTACAO > SCRIPTS_SQL > pgRouting_anel**
 
 **OBS. 2: Os scripts em Python estão localizados na pasta: SCRIPTS_DISSERTACAO > SCRIPTS_PYTHON > av_dissertacao > projetos > 2_ACESSIBILIDADE > VIÇOSA > pgROUTING_RedeVicosa_COM_ANEL.ipynb**
 
