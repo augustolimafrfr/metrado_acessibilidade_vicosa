@@ -3,7 +3,7 @@ Este é um tutorial com o passo-a-passo de todo o procedimento metodológico uti
 
 O objetivo desse tutorial é explicar de forma detalhada os procedimentos realizados para organizar a base de dados das vias de Viçosa e com isso, será possível entender o processo e replicá-lo para demais bases de dados.
 
-**Todos arquivos utilizados na dissertação estão localizados na pasta `DADOS_DISSERTAÇÃO`, que possui diversas sub-pastas com os arquivos de forma organizada. Essa pasta pode ser encontrada através do link: https://drive.google.com/file/d/1mreBchikRm8Gn5EZgYaLn4PTq6l3dMr_/view?usp=sharing**
+**Todos arquivos utilizados na dissertação estão localizados na pasta `DADOS_DISSERTAÇÃO`, que possui diversas sub-pastas com os arquivos de forma organizada. Essa pasta pode ser baixada através do link: https://drive.google.com/file/d/1mreBchikRm8Gn5EZgYaLn4PTq6l3dMr_/view?usp=sharing**
 
 ## PASSO-A-PASSO:
 
