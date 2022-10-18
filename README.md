@@ -1119,9 +1119,9 @@ Novamente é necessário verificar no `QGIS` se os campos source e target das li
     
   Após esse processo a rede está pronta para o cálculo da acessibilidade.
   
-  **Os arquivos com os códigos executados estão localizados em: **
+  **Os arquivos com os códigos executados estão localizados em:**
   
-  **Códigos SQL: SCRIPTS_DISSERTACAO > SCRIPTS_SQL > pgRouting
+  **Códigos SQL: SCRIPTS_DISSERTACAO > SCRIPTS_SQL > pgRouting**
   
   **Os arquivos `rede_vicosa`, `rede_vicosa_vertices_pgr`, `rede_vicosa_mp` e `rede_vicosa_mp_vertices` estão localizados na pasta `DADOS_FINAIS`.**
   
@@ -1321,7 +1321,7 @@ Primeiramente é necessario instalar o pacote `pandas` para manipular dataframes
 
     con.close() #ENCERRANDO A CONEXÃO COM BANCO DE DADOS
 
-** Os scripts acima se encontram na pasta SCRIPTS_DISSERTACAO > SCRIPTS_PYTHON > av_dissertacao > projetos > 2_ACESSIBILIDADE > VIÇOSA  > pgROUTING_RedeVicosa_SEM_ANEL.ipynb **
+**Os scripts acima se encontram na pasta SCRIPTS_DISSERTACAO > SCRIPTS_PYTHON > av_dissertacao > projetos > 2_ACESSIBILIDADE > VIÇOSA  > pgROUTING_RedeVicosa_SEM_ANEL.ipynb**
 
 ### 13. CÁLCULO DA CONECTIVIDADE E ACESSIBILIDADE (REDE COM ANEL VIÁRIO)
 
@@ -1524,7 +1524,7 @@ Os processo a seguir são feitos em ligaguem python
 
     con.close() #ENCERRANDO A CONEXÃO COM O BANCO DE DADOS
 
-**Esse Script se encontra na pasta SCRIPTS_PYTHON > av_dissertacao > projetos > 1_ORGANIZAR_DADOS > VIÇOSA > VERTICES_REDE_VICOSA_COM_ANEL.ipynb
+**Esse Script se encontra na pasta SCRIPTS_PYTHON > av_dissertacao > projetos > 1_ORGANIZAR_DADOS > VIÇOSA > VERTICES_REDE_VICOSA_COM_ANEL.ipynb**
 
 #### 13.1.14. VERIFICANDO VÉRTICES INICIAIS E FINAIS DAS LINHAS COM SENTIDO UNIDIRECIONAL `(SQL)`
 
@@ -1770,7 +1770,7 @@ Os processo a seguir são feitos em ligaguem python
     
 **OBS. 1: Os scripts em SQL estão na pasta: SCRIPTS_DISSERTACAO > SCRIPTS_SQL > pgRouting_anel
 
-**OBS. 2: Os scripts em Python estão localizados na pasta: SCRIPTS_DISSERTACAO > SCRIPTS_PYTHON > av_dissertacao > projetos > 2_ACESSIBILIDADE > VIÇOSA > pgROUTING_RedeVicosa_COM_ANEL.ipynb
+**OBS. 2: Os scripts em Python estão localizados na pasta: SCRIPTS_DISSERTACAO > SCRIPTS_PYTHON > av_dissertacao > projetos > 2_ACESSIBILIDADE > VIÇOSA > pgROUTING_RedeVicosa_COM_ANEL.ipynb**
 
 **Os arquivos `rede_vicosa_anel`, `rede_vicosa_anel_vertices_pgr`, `rede_vicosa_anel_mp` e `rede_vicosa_anel_mp_vertices` estão localizados na pasta `DADOS_FINAIS`.**
 
