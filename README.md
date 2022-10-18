@@ -9,7 +9,7 @@ O objetivo desse tutorial é explicar de forma detalhada os procedimentos realiz
 
 ### 1. ORIGEM DOS DADOS:
 
-Os dados utilizados nesse trabalho foram fornecidos por Vieira e Castro (2021) e pelo Serviço Autônomo de Água e Esgoto do município de Viçosa (SAAE). O primeiro arquivo nomeado como `Rede_Viaria_RSU_2021` trata-se do shapefile contando as ruas de Viçosa e conta com os atributos como **Nome da Rua**, **Tipo de Eixo**, ** Largura da rua**, **Pavimento**, **Declividade**, **Bairro**, entre outros. Os dados do SAAE, nomeado como `declividade_pontos_cotados_SAAE`, consistem em pontos cotados dos meio-fios das ruas ao longo de Viçosa. A malha viária de Vieira e Castro (2021) será utilizada para formar a rede de análise e os pontos cotados para gerar o Modelo Digital de Elevação (MDE) do município.
+Os dados utilizados nesse trabalho foram fornecidos por Vieira e Castro (2021) e pelo Serviço Autônomo de Água e Esgoto do município de Viçosa (SAAE). O primeiro arquivo nomeado como `Rede_Viaria_RSU_2021` trata-se do shapefile contando as ruas de Viçosa e conta com os atributos como **Nome da Rua**, **Tipo de Eixo**, **Largura da rua**, **Pavimento**, **Declividade**, **Bairro**, entre outros. Os dados do SAAE, nomeado como `declividade_pontos_cotados_SAAE`, consistem em pontos cotados dos meio-fios das ruas ao longo de Viçosa. A malha viária de Vieira e Castro (2021) será utilizada para formar a rede de análise e os pontos cotados para gerar o Modelo Digital de Elevação (MDE) do município.
 
 **Os arquivos `Rede_Viaria_RSU_2021` e `declividade_pontos_cotados_SAAE` estão localizados na pasta `DADOS INICIAIS`.**
 
